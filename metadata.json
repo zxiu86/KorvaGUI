@@ -1,0 +1,7 @@
+{
+  "name": "korva engine",
+  "description": "بيئة ومحرك korva engine لإدارة وإنشاء مشاريع الألعاب والتطبيقات بالوضع الأفقي ومظهر داكن احترافي مريح للعين.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
