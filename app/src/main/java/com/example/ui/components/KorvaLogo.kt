@@ -12,9 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Terminal
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -31,10 +28,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
-import com.example.ui.theme.EngineBorder
+import com.example.ui.theme.EngineCardBg
 import com.example.ui.theme.EngineSurfaceVariant
-import com.example.ui.theme.KorvaCyan
-import com.example.ui.theme.KorvaCyanDim
+import com.example.ui.theme.EngineWhiteBorder
+import com.example.ui.theme.EngineWhiteGlass
+import com.example.ui.theme.EngineWhiteMuted
+import com.example.ui.theme.EngineWhitePrimary
+import com.example.ui.theme.EngineWhiteTranslucent
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
@@ -48,23 +48,23 @@ fun KorvaLogo(
         modifier = modifier.testTag("app_logo_header"),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Logo Container with glowing border
+        // Logo Container with frosted glass border
         Box(
             modifier = Modifier
-                .size(if (compact) 44.dp else 52.dp)
-                .shadow(elevation = 12.dp, shape = RoundedCornerShape(14.dp), ambientColor = KorvaCyan, spotColor = KorvaCyan)
-                .clip(RoundedCornerShape(14.dp))
+                .size(if (compact) 40.dp else 48.dp)
+                .shadow(elevation = 8.dp, shape = RoundedCornerShape(12.dp), ambientColor = Color.Black, spotColor = Color.Black)
+                .clip(RoundedCornerShape(12.dp))
                 .background(
-                    Brush.radialGradient(
-                        colors = listOf(EngineSurfaceVariant, Color(0xFF0F172A))
+                    Brush.verticalGradient(
+                        colors = listOf(EngineSurfaceVariant, EngineCardBg)
                     )
                 )
                 .border(
-                    width = 1.5.dp,
-                    brush = Brush.linearGradient(
-                        colors = listOf(KorvaCyan, Color(0xFF1E3A8A))
+                    width = 1.dp,
+                    brush = Brush.verticalGradient(
+                        colors = listOf(EngineWhiteBorder, Color(0x10FFFFFF))
                     ),
-                    shape = RoundedCornerShape(14.dp)
+                    shape = RoundedCornerShape(12.dp)
                 ),
             contentAlignment = Alignment.Center
         ) {
@@ -72,48 +72,48 @@ fun KorvaLogo(
                 painter = painterResource(id = R.drawable.ic_korva_logo),
                 contentDescription = "Korva Engine Logo",
                 modifier = Modifier
-                    .size(if (compact) 36.dp else 44.dp)
-                    .clip(RoundedCornerShape(10.dp)),
+                    .size(if (compact) 32.dp else 38.dp)
+                    .clip(RoundedCornerShape(8.dp)),
                 contentScale = ContentScale.Crop
             )
         }
 
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(10.dp))
 
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = "korva",
                     color = TextPrimary,
-                    fontSize = if (compact) 18.sp else 22.sp,
+                    fontSize = if (compact) 16.sp else 20.sp,
                     fontWeight = FontWeight.Black,
                     fontFamily = FontFamily.SansSerif,
-                    letterSpacing = 1.2.sp
+                    letterSpacing = 1.1.sp
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = "engine",
-                    color = KorvaCyan,
-                    fontSize = if (compact) 18.sp else 22.sp,
+                    color = EngineWhiteTranslucent,
+                    fontSize = if (compact) 16.sp else 20.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace,
                     letterSpacing = 0.8.sp
                 )
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
 
-                // Engine Badge
+                // Translucent Engine Version Badge
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(KorvaCyan.copy(alpha = 0.15f))
-                        .border(0.8.dp, KorvaCyan.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(EngineWhiteGlass)
+                        .border(0.8.dp, EngineWhiteBorder, RoundedCornerShape(4.dp))
+                        .padding(horizontal = 5.dp, vertical = 2.dp)
                 ) {
                     Text(
-                        text = "PRO v2.4",
-                        color = KorvaCyan,
-                        fontSize = 9.sp,
+                        text = "v2.4",
+                        color = EngineWhiteMuted,
+                        fontSize = 8.5.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace
                     )
@@ -123,9 +123,9 @@ fun KorvaLogo(
             Spacer(modifier = Modifier.height(2.dp))
 
             Text(
-                text = "بيئة التطوير والمحرك الرسومي المتقدم",
+                text = "بيئة تطوير ومحرك ألعاب",
                 color = TextSecondary,
-                fontSize = if (compact) 11.sp else 12.sp,
+                fontSize = if (compact) 10.5.sp else 11.5.sp,
                 fontWeight = FontWeight.Medium
             )
         }

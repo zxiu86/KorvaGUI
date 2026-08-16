@@ -14,7 +14,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.PowerSettingsNew
@@ -34,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.example.ui.theme.EngineBorder
 import com.example.ui.theme.EngineSurface
 import com.example.ui.theme.KorvaRed
@@ -45,55 +48,62 @@ fun ExitConfirmDialog(
     onDismiss: () -> Unit,
     onConfirmExit: () -> Unit
 ) {
-    Dialog(onDismissRequest = onDismiss) {
+    val scrollState = rememberScrollState()
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnBackPress = true)
+    ) {
         Surface(
             modifier = Modifier
-                .widthIn(min = 360.dp, max = 440.dp)
-                .padding(16.dp)
+                .fillMaxWidth(0.85f)
+                .widthIn(min = 320.dp, max = 440.dp)
+                .padding(8.dp)
                 .shadow(20.dp, RoundedCornerShape(16.dp))
                 .clip(RoundedCornerShape(16.dp))
                 .background(EngineSurface)
-                .border(1.dp, KorvaRed.copy(alpha = 0.5f), RoundedCornerShape(16.dp)),
+                .border(1.dp, KorvaRed.copy(alpha = 0.4f), RoundedCornerShape(16.dp)),
             color = EngineSurface
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp)
+                    .padding(18.dp)
+                    .verticalScroll(scrollState)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(36.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .background(KorvaRed.copy(alpha = 0.15f))
-                            .border(1.dp, KorvaRed.copy(alpha = 0.4f), RoundedCornerShape(8.dp)),
+                            .border(1.dp, KorvaRed.copy(alpha = 0.3f), RoundedCornerShape(8.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.PowerSettingsNew,
                             contentDescription = null,
                             tint = KorvaRed,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
                             text = "إغلاق التطبيق",
                             color = TextPrimary,
-                            fontSize = 16.sp,
+                            fontSize = 15.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = "هل أنت متأكد من الخروج من korva engine؟",
                             color = TextSecondary,
-                            fontSize = 12.sp
+                            fontSize = 11.5.sp
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(18.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -102,11 +112,11 @@ fun ExitConfirmDialog(
                 ) {
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(RoundedCornerShape(6.dp))
                             .clickable { onDismiss() }
-                            .padding(horizontal = 14.dp, vertical = 8.dp)
+                            .padding(horizontal = 12.dp, vertical = 7.dp)
                     ) {
-                        Text("البقاء", color = TextSecondary, fontSize = 13.sp)
+                        Text("البقاء", color = TextSecondary, fontSize = 12.5.sp)
                     }
 
                     Spacer(modifier = Modifier.width(8.dp))
@@ -121,9 +131,9 @@ fun ExitConfirmDialog(
                         modifier = Modifier.testTag("confirm_exit_button")
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.ExitToApp, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.ExitToApp, contentDescription = null, modifier = Modifier.size(14.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("خروج نهائي", fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
+                            Text("خروج نهائي", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }

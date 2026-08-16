@@ -8,24 +8,20 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.InsertDriveFile
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -50,12 +46,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.example.ui.theme.EngineBackground
 import com.example.ui.theme.EngineBorder
 import com.example.ui.theme.EngineCardBg
 import com.example.ui.theme.EngineSurface
-import com.example.ui.theme.EngineSurfaceVariant
-import com.example.ui.theme.KorvaBlue
-import com.example.ui.theme.KorvaCyan
+import com.example.ui.theme.EngineWhiteBorder
+import com.example.ui.theme.EngineWhiteGlass
+import com.example.ui.theme.EngineWhiteMuted
+import com.example.ui.theme.EngineWhitePrimary
+import com.example.ui.theme.EngineWhiteTranslucent
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
@@ -69,6 +68,7 @@ fun OpenProjectDialog(
 ) {
     var currentPath by remember { mutableStateOf(initialPath) }
     var manualPathInput by remember { mutableStateOf(initialPath) }
+    val scrollState = rememberScrollState()
 
     // Quick folders discovered or simulated in storage
     val discoveredFolders = remember(currentPath) {
@@ -93,15 +93,17 @@ fun OpenProjectDialog(
     ) {
         Surface(
             modifier = Modifier
-                .widthIn(min = 520.dp, max = 680.dp)
-                .padding(16.dp)
+                .fillMaxWidth(0.92f)
+                .widthIn(min = 400.dp, max = 680.dp)
+                .fillMaxHeight(0.90f)
+                .padding(8.dp)
                 .shadow(24.dp, RoundedCornerShape(16.dp))
                 .clip(RoundedCornerShape(16.dp))
                 .background(EngineSurface)
                 .border(
-                    width = 1.2.dp,
-                    brush = Brush.linearGradient(
-                        listOf(KorvaBlue.copy(alpha = 0.6f), EngineBorder)
+                    width = 1.dp,
+                    brush = Brush.verticalGradient(
+                        listOf(EngineWhiteBorder, EngineBorder)
                     ),
                     shape = RoundedCornerShape(16.dp)
                 ),
@@ -110,7 +112,7 @@ fun OpenProjectDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp)
+                    .padding(18.dp)
             ) {
                 // Header
                 Row(
@@ -123,104 +125,110 @@ fun OpenProjectDialog(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(KorvaBlue.copy(alpha = 0.15f))
-                                .border(1.dp, KorvaBlue.copy(alpha = 0.4f), RoundedCornerShape(8.dp)),
+                                .background(EngineWhiteGlass)
+                                .border(0.8.dp, EngineWhiteBorder, RoundedCornerShape(8.dp)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.FolderOpen,
                                 contentDescription = null,
-                                tint = KorvaBlue,
-                                modifier = Modifier.size(20.dp)
+                                tint = EngineWhitePrimary,
+                                modifier = Modifier.size(18.dp)
                             )
                         }
 
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
 
                         Column {
                             Text(
                                 text = "تحرير مشروع محفوظ (Open Project)",
                                 color = TextPrimary,
-                                fontSize = 16.sp,
+                                fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "استعراض الذاكرة وفتح مجلدات ومشاريع Korva المحفوظة",
+                                text = "استعراض الذاكرة وفتح مجلدات المشاريع",
                                 color = TextSecondary,
-                                fontSize = 11.5.sp
+                                fontSize = 11.sp
                             )
                         }
                     }
 
                     IconButton(
                         onClick = onDismiss,
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(30.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "إغلاق",
                             tint = TextMuted,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // Current Path input
-                OutlinedTextField(
-                    value = manualPathInput,
-                    onValueChange = {
-                        manualPathInput = it
-                        currentPath = it
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("open_project_path_input"),
-                    label = { Text("المسار المستهدف", fontSize = 11.sp) },
-                    singleLine = true,
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Folder,
-                            contentDescription = null,
-                            tint = KorvaBlue,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = KorvaBlue,
-                        unfocusedBorderColor = EngineBorder,
-                        focusedContainerColor = EngineCardBg,
-                        unfocusedContainerColor = EngineCardBg,
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary
-                    ),
-                    shape = RoundedCornerShape(10.dp)
-                )
-
                 Spacer(modifier = Modifier.height(12.dp))
 
-                Text(
-                    text = "المجلدات المكتشفة في المسار:",
-                    color = TextSecondary,
-                    fontSize = 11.5.sp,
-                    fontWeight = FontWeight.Medium
-                )
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                // Folder list
-                Box(
+                // Scrollable Content
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(140.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(EngineCardBg)
-                        .border(1.dp, EngineBorder, RoundedCornerShape(10.dp))
-                        .padding(6.dp)
+                        .weight(1f)
+                        .verticalScroll(scrollState)
                 ) {
-                    LazyColumn {
-                        items(discoveredFolders) { folderName ->
+                    // Current Path input
+                    OutlinedTextField(
+                        value = manualPathInput,
+                        onValueChange = {
+                            manualPathInput = it
+                            currentPath = it
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("open_project_path_input"),
+                        label = { Text("المسار المستهدف", fontSize = 11.sp) },
+                        singleLine = true,
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Folder,
+                                contentDescription = null,
+                                tint = EngineWhiteTranslucent,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = EngineWhitePrimary,
+                            unfocusedBorderColor = EngineBorder,
+                            focusedContainerColor = EngineCardBg,
+                            unfocusedContainerColor = EngineCardBg,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Text(
+                        text = "المجلدات المكتشفة في المسار:",
+                        color = TextSecondary,
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // Folder list
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(EngineCardBg)
+                            .border(0.8.dp, EngineBorder, RoundedCornerShape(8.dp))
+                            .padding(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        discoveredFolders.forEach { folderName ->
                             val folderFullPath = "$currentPath/$folderName"
                             Row(
                                 modifier = Modifier
@@ -229,7 +237,7 @@ fun OpenProjectDialog(
                                     .clickable {
                                         manualPathInput = folderFullPath
                                     }
-                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                    .padding(horizontal = 8.dp, vertical = 7.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
@@ -237,14 +245,14 @@ fun OpenProjectDialog(
                                     Icon(
                                         imageVector = Icons.Default.Folder,
                                         contentDescription = null,
-                                        tint = KorvaBlue,
-                                        modifier = Modifier.size(16.dp)
+                                        tint = EngineWhiteTranslucent,
+                                        modifier = Modifier.size(15.dp)
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
                                         text = folderName,
                                         color = TextPrimary,
-                                        fontSize = 12.5.sp,
+                                        fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                 }
@@ -252,7 +260,7 @@ fun OpenProjectDialog(
                                 Text(
                                     text = "project.korva",
                                     color = TextMuted,
-                                    fontSize = 10.sp,
+                                    fontSize = 9.5.sp,
                                     fontFamily = FontFamily.Monospace
                                 )
                             }
@@ -260,7 +268,7 @@ fun OpenProjectDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 // Footer
                 Row(
@@ -270,41 +278,42 @@ fun OpenProjectDialog(
                 ) {
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(RoundedCornerShape(6.dp))
                             .clickable { onDismiss() }
-                            .padding(horizontal = 14.dp, vertical = 8.dp)
+                            .padding(horizontal = 12.dp, vertical = 7.dp)
                     ) {
                         Text(
                             text = "إلغاء",
                             color = TextSecondary,
-                            fontSize = 13.sp
+                            fontSize = 12.5.sp
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
 
-                    Button(
-                        onClick = {
-                            onProjectSelected(manualPathInput.ifBlank { initialPath })
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = KorvaBlue,
-                            contentColor = com.example.ui.theme.EngineBackground
-                        ),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.testTag("confirm_open_project_button")
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(EngineWhitePrimary)
+                            .clickable {
+                                onProjectSelected(manualPathInput.ifBlank { initialPath })
+                            }
+                            .padding(horizontal = 14.dp, vertical = 8.dp)
+                            .testTag("confirm_open_project_button")
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Default.FolderOpen,
                                 contentDescription = null,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(14.dp),
+                                tint = EngineBackground
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "فتح وتعديل المشروع",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = EngineBackground
                             )
                         }
                     }

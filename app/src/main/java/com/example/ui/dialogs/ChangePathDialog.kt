@@ -14,14 +14,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -44,11 +44,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.example.ui.theme.EngineBackground
 import com.example.ui.theme.EngineBorder
 import com.example.ui.theme.EngineCardBg
 import com.example.ui.theme.EngineSurface
-import com.example.ui.theme.KorvaCyan
+import com.example.ui.theme.EngineWhiteBorder
+import com.example.ui.theme.EngineWhiteGlass
+import com.example.ui.theme.EngineWhiteMuted
+import com.example.ui.theme.EngineWhitePrimary
+import com.example.ui.theme.EngineWhiteTranslucent
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
@@ -60,6 +65,7 @@ fun ChangePathDialog(
     onConfirm: (newPath: String) -> Unit
 ) {
     var pathInput by remember { mutableStateOf(currentPath) }
+    val scrollState = rememberScrollState()
 
     val presetLocations = remember {
         listOf(
@@ -69,18 +75,22 @@ fun ChangePathDialog(
         )
     }
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnBackPress = true)
+    ) {
         Surface(
             modifier = Modifier
-                .widthIn(min = 480.dp, max = 600.dp)
-                .padding(16.dp)
+                .fillMaxWidth(0.88f)
+                .widthIn(min = 380.dp, max = 580.dp)
+                .padding(8.dp)
                 .shadow(20.dp, RoundedCornerShape(16.dp))
                 .clip(RoundedCornerShape(16.dp))
                 .background(EngineSurface)
                 .border(
                     width = 1.dp,
-                    brush = Brush.linearGradient(
-                        listOf(KorvaCyan.copy(alpha = 0.5f), EngineBorder)
+                    brush = Brush.verticalGradient(
+                        listOf(EngineWhiteBorder, EngineBorder)
                     ),
                     shape = RoundedCornerShape(16.dp)
                 ),
@@ -89,7 +99,8 @@ fun ChangePathDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp)
+                    .padding(18.dp)
+                    .verticalScroll(scrollState)
             ) {
                 // Header
                 Row(
@@ -102,13 +113,14 @@ fun ChangePathDialog(
                             modifier = Modifier
                                 .size(34.dp)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(KorvaCyan.copy(alpha = 0.15f)),
+                                .background(EngineWhiteGlass)
+                                .border(0.8.dp, EngineWhiteBorder, RoundedCornerShape(8.dp)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.DriveFileMove,
                                 contentDescription = null,
-                                tint = KorvaCyan,
+                                tint = EngineWhitePrimary,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -116,7 +128,7 @@ fun ChangePathDialog(
                         Text(
                             text = "تحديد مسار الحفظ الافتراضي",
                             color = TextPrimary,
-                            fontSize = 15.sp,
+                            fontSize = 14.5.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -137,7 +149,7 @@ fun ChangePathDialog(
                     label = { Text("المسار", fontSize = 11.sp) },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = KorvaCyan,
+                        focusedBorderColor = EngineWhitePrimary,
                         unfocusedBorderColor = EngineBorder,
                         focusedContainerColor = EngineCardBg,
                         unfocusedContainerColor = EngineCardBg,
@@ -166,12 +178,12 @@ fun ChangePathDialog(
                             .background(EngineCardBg)
                             .border(0.8.dp, EngineBorder, RoundedCornerShape(6.dp))
                             .clickable { pathInput = preset }
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                            .padding(horizontal = 10.dp, vertical = 7.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Folder, contentDescription = null, tint = KorvaCyan, modifier = Modifier.size(14.dp))
+                            Icon(Icons.Default.Folder, contentDescription = null, tint = EngineWhiteTranslucent, modifier = Modifier.size(14.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(preset, color = TextPrimary, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                            Text(preset, color = TextPrimary, fontSize = 10.5.sp, fontFamily = FontFamily.Monospace)
                         }
                     }
                 }
@@ -185,25 +197,27 @@ fun ChangePathDialog(
                 ) {
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(RoundedCornerShape(6.dp))
                             .clickable { onDismiss() }
-                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                            .padding(horizontal = 12.dp, vertical = 7.dp)
                     ) {
-                        Text("إلغاء", color = TextSecondary, fontSize = 12.5.sp)
+                        Text("إلغاء", color = TextSecondary, fontSize = 12.sp)
                     }
 
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    Button(
-                        onClick = { onConfirm(pathInput.ifBlank { currentPath }) },
-                        colors = ButtonDefaults.buttonColors(containerColor = KorvaCyan, contentColor = EngineBackground),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.testTag("confirm_change_path_button")
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(EngineWhitePrimary)
+                            .clickable { onConfirm(pathInput.ifBlank { currentPath }) }
+                            .padding(horizontal = 14.dp, vertical = 8.dp)
+                            .testTag("confirm_change_path_button")
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(14.dp))
+                            Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(14.dp), tint = EngineBackground)
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("حفظ المسار", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("حفظ المسار", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = EngineBackground)
                         }
                     }
                 }

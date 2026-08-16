@@ -14,7 +14,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Warning
@@ -35,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.example.data.model.ProjectEntity
 import com.example.ui.theme.EngineSurface
 import com.example.ui.theme.KorvaRed
@@ -48,39 +51,46 @@ fun DeleteConfirmDialog(
     onDismiss: () -> Unit,
     onConfirmDelete: () -> Unit
 ) {
-    Dialog(onDismissRequest = onDismiss) {
+    val scrollState = rememberScrollState()
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnBackPress = true)
+    ) {
         Surface(
             modifier = Modifier
-                .widthIn(min = 380.dp, max = 460.dp)
-                .padding(16.dp)
+                .fillMaxWidth(0.85f)
+                .widthIn(min = 340.dp, max = 460.dp)
+                .padding(8.dp)
                 .shadow(20.dp, RoundedCornerShape(16.dp))
                 .clip(RoundedCornerShape(16.dp))
                 .background(EngineSurface)
-                .border(1.dp, KorvaRed.copy(alpha = 0.5f), RoundedCornerShape(16.dp)),
+                .border(1.dp, KorvaRed.copy(alpha = 0.4f), RoundedCornerShape(16.dp)),
             color = EngineSurface
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp)
+                    .padding(18.dp)
+                    .verticalScroll(scrollState)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(36.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .background(KorvaRed.copy(alpha = 0.15f))
-                            .border(1.dp, KorvaRed.copy(alpha = 0.4f), RoundedCornerShape(8.dp)),
+                            .border(1.dp, KorvaRed.copy(alpha = 0.3f), RoundedCornerShape(8.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Warning,
                             contentDescription = null,
                             tint = KorvaRed,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
                             text = "حذف المشروع نهائياً",
@@ -91,28 +101,28 @@ fun DeleteConfirmDialog(
                         Text(
                             text = project.name,
                             color = KorvaRed,
-                            fontSize = 12.5.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
                     text = "سيتم حذف ملفات المشروع وبياناته من الذاكرة المحلية:",
                     color = TextSecondary,
-                    fontSize = 11.5.sp
+                    fontSize = 11.sp
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(3.dp))
                 Text(
                     text = project.path,
                     color = TextMuted,
-                    fontSize = 10.5.sp,
+                    fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace
                 )
 
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -121,9 +131,9 @@ fun DeleteConfirmDialog(
                 ) {
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(RoundedCornerShape(6.dp))
                             .clickable { onDismiss() }
-                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                            .padding(horizontal = 12.dp, vertical = 7.dp)
                     ) {
                         Text("إلغاء", color = TextSecondary, fontSize = 12.5.sp)
                     }
@@ -140,7 +150,7 @@ fun DeleteConfirmDialog(
                         modifier = Modifier.testTag("confirm_delete_button")
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.DeleteForever, contentDescription = null, modifier = Modifier.size(15.dp))
+                            Icon(Icons.Default.DeleteForever, contentDescription = null, modifier = Modifier.size(14.dp))
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("حذف نهائي", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
