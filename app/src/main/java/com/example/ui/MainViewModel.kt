@@ -249,52 +249,73 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun initEditorForProject(project: ProjectEntity) {
         val initialNodes = listOf(
             SceneNode(
-                id = "node_cam",
-                name = "Main Camera",
-                type = NodeType.CAMERA,
-                posX = 0f,
-                posY = 0f,
-                scale = 1f,
-                colorHex = "#38BDF8"
-            ),
-            SceneNode(
-                id = "node_light",
-                name = "Directional Light 2D",
-                type = NodeType.LIGHT,
-                posX = 120f,
-                posY = -100f,
-                scale = 1.2f,
-                colorHex = "#FBBF24"
-            ),
-            SceneNode(
                 id = "node_player",
-                name = "Player Character",
+                name = "Player",
                 type = NodeType.PLAYER,
                 posX = 0f,
-                posY = 50f,
-                scale = 1.5f,
-                colorHex = "#00E5C9",
+                posY = 10f,
+                scale = 1.0f,
+                colorHex = "#8B5CF6",
                 hasPhysics = true,
-                mass = 1.2f
+                mass = 1.0f
             ),
             SceneNode(
-                id = "node_ground",
-                name = "Floor Collider",
-                type = NodeType.PLATFORM,
-                posX = 0f,
-                posY = 160f,
-                scale = 4.0f,
-                colorHex = "#64748B",
+                id = "node_enemy",
+                name = "Enemy",
+                type = NodeType.ENEMY,
+                posX = -120f,
+                posY = -40f,
+                scale = 1.0f,
+                colorHex = "#EF4444",
+                hasPhysics = true,
+                mass = 1.5f
+            ),
+            SceneNode(
+                id = "node_tree",
+                name = "Tree",
+                type = NodeType.SPRITE_OBJECT,
+                posX = 160f,
+                posY = -80f,
+                scale = 1.8f,
+                colorHex = "#22C55E",
                 hasPhysics = false
             ),
             SceneNode(
-                id = "node_particles",
-                name = "Cyber Emitter",
+                id = "node_coin",
+                name = "Coin",
                 type = NodeType.PARTICLE_SYSTEM,
-                posX = -100f,
-                posY = 20f,
-                scale = 1f,
-                colorHex = "#A855F7"
+                posX = 80f,
+                posY = 40f,
+                scale = 0.8f,
+                colorHex = "#FACC15",
+                hasPhysics = false
+            ),
+            SceneNode(
+                id = "node_cam",
+                name = "Camera",
+                type = NodeType.CAMERA,
+                posX = 0f,
+                posY = 0f,
+                scale = 1.0f,
+                colorHex = "#38BDF8"
+            ),
+            SceneNode(
+                id = "node_canvas",
+                name = "Canvas",
+                type = NodeType.SPRITE_OBJECT,
+                posX = 0f,
+                posY = 0f,
+                scale = 1.0f,
+                colorHex = "#F472B6"
+            ),
+            SceneNode(
+                id = "node_light",
+                name = "Light",
+                type = NodeType.LIGHT,
+                posX = -60f,
+                posY = -120f,
+                scale = 1.2f,
+                colorHex = "#FB923C"
             )
         )
         _sceneNodes.value = initialNodes

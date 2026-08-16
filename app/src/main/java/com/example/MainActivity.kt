@@ -1,6 +1,9 @@
 package com.example
 
+import android.os.Build
 import android.os.Bundle
+import android.view.View
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -8,10 +11,12 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.MainViewModel
 import com.example.ui.dialogs.ChangePathDialog
@@ -31,6 +36,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        hideSystemUI()
+
         setContent {
             MyApplicationTheme {
                 val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -39,24 +46,23 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier
                         .fillMaxSize()
                         .background(EngineBackground)
-                        .safeDrawingPadding()
                 ) {
                     if (uiState.activeProject != null) {
-                        // بيئة التعديل (Editor Workspace)
+                        // بيئة التعديل الاحترافية للمحرك (Studio Game Engine Workspace)
                         EditorWorkspaceScreen(
                             project = uiState.activeProject!!,
                             uiState = uiState,
                             viewModel = viewModel
                         )
                     } else {
-                        // الشاشة الرئيسية الثابتة (Home Dashboard)
+                        // الشاشة الرئيسية (Home Dashboard)
                         HomeScreen(
                             uiState = uiState,
                             viewModel = viewModel
                         )
                     }
 
-                    // Central Dialog for New Project (نافذة مشروع جديد المنبثقة)
+                    // Dialog for New Project
                     if (uiState.isNewProjectDialogOpen) {
                         NewProjectDialog(
                             defaultPath = uiState.defaultSavePath,
@@ -70,7 +76,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    // Dialog for Opening an existing project (نافذة تحرير مشروع محفوظ)
+                    // Dialog for Opening an existing project
                     if (uiState.isOpenProjectDialogOpen) {
                         OpenProjectDialog(
                             initialPath = uiState.defaultSavePath,
@@ -81,7 +87,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    // Dialog for Changing Path (نافذة تغيير مسار الحفظ)
+                    // Dialog for Changing Path
                     if (uiState.isChangePathDialogOpen) {
                         ChangePathDialog(
                             currentPath = uiState.defaultSavePath,
@@ -92,7 +98,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    // Dialog for Exit Confirmation (نافذة تأكيد الخروج الصريح)
+                    // Dialog for Exit Confirmation
                     if (uiState.isExitConfirmDialogOpen) {
                         ExitConfirmDialog(
                             onDismiss = { viewModel.closeExitConfirmDialog() },
@@ -103,7 +109,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    // Dialog for Project Deletion Confirmation (نافذة تأكيد الحذف)
+                    // Dialog for Project Deletion Confirmation
                     uiState.projectToDelete?.let { project ->
                         DeleteConfirmDialog(
                             project = project,
@@ -115,5 +121,29 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-}
 
+    override fun onResume() {
+        super.onResume()
+        hideSystemUI()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            hideSystemUI()
+        }
+    }
+
+    private fun hideSystemUI() {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+        insetsController.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        insetsController.hide(WindowInsetsCompat.Type.systemBars())
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.attributes.layoutInDisplayCutoutMode =
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        }
+    }
+}

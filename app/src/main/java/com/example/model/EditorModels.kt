@@ -22,6 +22,7 @@ enum class NodeType {
     PLAYER,
     ENEMY,
     PLATFORM,
+    SPRITE_OBJECT,
     PARTICLE_SYSTEM,
     UI_CANVAS,
     AUDIO_SOURCE
