@@ -16,11 +16,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Android
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Timeline
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -58,6 +62,14 @@ fun StudioHeader(
     projectType: String,
     isPlaying: Boolean,
     isPaused: Boolean,
+    isHierarchyVisible: Boolean,
+    isInspectorVisible: Boolean,
+    isTimelineVisible: Boolean,
+    isFullscreen: Boolean,
+    onToggleHierarchy: () -> Unit,
+    onToggleInspector: () -> Unit,
+    onToggleTimeline: () -> Unit,
+    onToggleFullscreen: () -> Unit,
     onPlayClick: () -> Unit,
     onPauseClick: () -> Unit,
     onStopClick: () -> Unit,
@@ -201,89 +213,178 @@ fun StudioHeader(
             }
         }
 
-        // Center Section: Compact Transport Controls (Play, Pause, Stop)
+        // Center Section: Compact Transport Controls (Play, Pause, Stop) + View Layout Toggles
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(3.dp),
-            modifier = Modifier
-                .clip(RoundedCornerShape(5.dp))
-                .background(EngineCardBg)
-                .border(0.5.dp, StudioBorder, RoundedCornerShape(5.dp))
-                .padding(horizontal = 3.dp, vertical = 2.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            // Play Button
-            Box(
+            // Transport Controls
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
                 modifier = Modifier
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(if (isPlaying && !isPaused) StudioPurple else Color.Transparent)
-                    .clickable { onPlayClick() }
-                    .padding(horizontal = 6.dp, vertical = 3.dp)
-                    .testTag("studio_play_button")
+                    .clip(RoundedCornerShape(5.dp))
+                    .background(EngineCardBg)
+                    .border(0.5.dp, StudioBorder, RoundedCornerShape(5.dp))
+                    .padding(horizontal = 3.dp, vertical = 2.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = "تشغيل",
-                        tint = if (isPlaying && !isPaused) Color.White else StudioPurpleLight,
-                        modifier = Modifier.size(12.dp)
-                    )
-                    Spacer(modifier = Modifier.width(2.dp))
-                    Text(
-                        text = "Play",
-                        color = if (isPlaying && !isPaused) Color.White else TextPrimary,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                // Play Button
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(if (isPlaying && !isPaused) StudioPurple else Color.Transparent)
+                        .clickable { onPlayClick() }
+                        .padding(horizontal = 6.dp, vertical = 3.dp)
+                        .testTag("studio_play_button")
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = "تشغيل",
+                            tint = if (isPlaying && !isPaused) Color.White else StudioPurpleLight,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text(
+                            text = "Play",
+                            color = if (isPlaying && !isPaused) Color.White else TextPrimary,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                // Pause Button
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(if (isPaused) StudioPurple.copy(alpha = 0.3f) else Color.Transparent)
+                        .clickable { onPauseClick() }
+                        .padding(horizontal = 5.dp, vertical = 3.dp)
+                        .testTag("studio_pause_button")
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Pause,
+                            contentDescription = "إيقاف مؤقت",
+                            tint = TextSecondary,
+                            modifier = Modifier.size(11.dp)
+                        )
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text(
+                            text = "Pause",
+                            color = TextSecondary,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+
+                // Stop Button
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .clickable { onStopClick() }
+                        .padding(horizontal = 5.dp, vertical = 3.dp)
+                        .testTag("studio_stop_button")
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(7.dp)
+                                .clip(RoundedCornerShape(1.dp))
+                                .background(StudioRed)
+                        )
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text(
+                            text = "Stop",
+                            color = TextSecondary,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             }
 
-            // Pause Button
-            Box(
+            // Panel Visibility Dock Toggles (Modern UX for Quick Toggle)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
                 modifier = Modifier
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(if (isPaused) StudioPurple.copy(alpha = 0.3f) else Color.Transparent)
-                    .clickable { onPauseClick() }
-                    .padding(horizontal = 5.dp, vertical = 3.dp)
-                    .testTag("studio_pause_button")
+                    .clip(RoundedCornerShape(5.dp))
+                    .background(EngineCardBg)
+                    .border(0.5.dp, StudioBorder, RoundedCornerShape(5.dp))
+                    .padding(horizontal = 2.dp, vertical = 2.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                // Toggle Hierarchy (Left Panel)
+                Box(
+                    modifier = Modifier
+                        .size(20.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(if (isHierarchyVisible) StudioPurpleDark else Color.Transparent)
+                        .clickable { onToggleHierarchy() }
+                        .testTag("toggle_hierarchy_btn"),
+                    contentAlignment = Alignment.Center
+                ) {
                     Icon(
-                        imageVector = Icons.Default.Pause,
-                        contentDescription = "إيقاف مؤقت",
-                        tint = TextSecondary,
+                        imageVector = Icons.Default.Layers,
+                        contentDescription = "تبديل لوحة العناصر والطبقات",
+                        tint = if (isHierarchyVisible) StudioPurpleLight else TextMuted,
                         modifier = Modifier.size(11.dp)
                     )
-                    Spacer(modifier = Modifier.width(2.dp))
-                    Text(
-                        text = "Pause",
-                        color = TextSecondary,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Medium
+                }
+
+                // Toggle Timeline (Bottom Panel)
+                Box(
+                    modifier = Modifier
+                        .size(20.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(if (isTimelineVisible) StudioPurpleDark else Color.Transparent)
+                        .clickable { onToggleTimeline() }
+                        .testTag("toggle_timeline_btn"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Timeline,
+                        contentDescription = "تبديل شريط الحركة الزمني",
+                        tint = if (isTimelineVisible) StudioPurpleLight else TextMuted,
+                        modifier = Modifier.size(11.dp)
                     )
                 }
-            }
 
-            // Stop Button
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(4.dp))
-                    .clickable { onStopClick() }
-                    .padding(horizontal = 5.dp, vertical = 3.dp)
-                    .testTag("studio_stop_button")
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(7.dp)
-                            .clip(RoundedCornerShape(1.dp))
-                            .background(StudioRed)
+                // Toggle Inspector (Right Panel)
+                Box(
+                    modifier = Modifier
+                        .size(20.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(if (isInspectorVisible) StudioPurpleDark else Color.Transparent)
+                        .clickable { onToggleInspector() }
+                        .testTag("toggle_inspector_btn"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Tune,
+                        contentDescription = "تبديل لوحة الخصائص والمكونات",
+                        tint = if (isInspectorVisible) StudioPurpleLight else TextMuted,
+                        modifier = Modifier.size(11.dp)
                     )
-                    Spacer(modifier = Modifier.width(3.dp))
-                    Text(
-                        text = "Stop",
-                        color = TextSecondary,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Medium
+                }
+
+                // Toggle Fullscreen / Zen Viewport
+                Box(
+                    modifier = Modifier
+                        .size(20.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(if (isFullscreen) StudioPurple else Color.Transparent)
+                        .clickable { onToggleFullscreen() }
+                        .testTag("toggle_fullscreen_btn"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (isFullscreen) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                        contentDescription = "وضع ملء الشاشة لمنطقة التصميم",
+                        tint = if (isFullscreen) Color.White else TextMuted,
+                        modifier = Modifier.size(11.dp)
                     )
                 }
             }

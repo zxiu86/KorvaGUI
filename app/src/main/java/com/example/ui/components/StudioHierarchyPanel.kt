@@ -20,13 +20,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Park
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Token
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.ViewInAr
@@ -37,6 +40,8 @@ import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -86,10 +91,13 @@ fun StudioHierarchyPanel(
     onSelectNode: (String) -> Unit,
     onAddNode: (name: String, type: NodeType) -> Unit,
     onDeleteNode: (String) -> Unit,
+    onToggleNodeVisibility: (String) -> Unit = {},
+    onCollapse: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showAddMenu by remember { mutableStateOf(false) }
-    var selectedSubtab by remember { mutableStateOf(0) }
+    var selectedSubtab by remember { mutableStateOf(0) } // 0: Tree, 1: Layers
+    var searchQuery by remember { mutableStateOf("") }
 
     val layers = remember {
         mutableStateMapOf(
@@ -101,87 +109,126 @@ fun StudioHierarchyPanel(
         )
     }
 
+    val filteredNodes = remember(sceneNodes, searchQuery) {
+        if (searchQuery.isBlank()) sceneNodes
+        else sceneNodes.filter { it.name.contains(searchQuery, ignoreCase = true) }
+    }
+
     Column(
         modifier = modifier
             .fillMaxHeight()
-            .width(120.dp)
+            .width(125.dp)
             .background(EngineSurface)
             .border(0.6.dp, StudioBorder)
             .padding(4.dp)
     ) {
         // ========================================================
-        // 1. OBJECTS Header & Add Button
+        // 1. OBJECTS Header & Actions (Add + Collapse)
         // ========================================================
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(
-                text = "OBJECTS",
-                color = TextSecondary,
-                fontSize = 8.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 0.5.sp
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "HIERARCHY",
+                    color = TextSecondary,
+                    fontSize = 7.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.5.sp
+                )
+                Spacer(modifier = Modifier.width(3.dp))
+                Text(
+                    text = "(${sceneNodes.size})",
+                    color = StudioPurpleLight,
+                    fontSize = 7.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
 
-            Box {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                // Add Object Button
+                Box {
+                    Box(
+                        modifier = Modifier
+                            .size(15.dp)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(EngineCardBg)
+                            .border(0.5.dp, StudioBorder, RoundedCornerShape(3.dp))
+                            .clickable { showAddMenu = true }
+                            .testTag("add_object_button"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "إضافة عنصر",
+                            tint = TextPrimary,
+                            modifier = Modifier.size(10.dp)
+                        )
+                    }
+
+                    DropdownMenu(
+                        expanded = showAddMenu,
+                        onDismissRequest = { showAddMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Player Sprite", fontSize = 9.5.sp) },
+                            onClick = {
+                                onAddNode("Player Hero", NodeType.PLAYER)
+                                showAddMenu = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Platform Tile", fontSize = 9.5.sp) },
+                            onClick = {
+                                onAddNode("Grass Platform", NodeType.PLATFORM)
+                                showAddMenu = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Enemy NPC", fontSize = 9.5.sp) },
+                            onClick = {
+                                onAddNode("Goblin Enemy", NodeType.ENEMY)
+                                showAddMenu = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Light Source", fontSize = 9.5.sp) },
+                            onClick = {
+                                onAddNode("Point Light", NodeType.LIGHT)
+                                showAddMenu = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Particle Emitter", fontSize = 9.5.sp) },
+                            onClick = {
+                                onAddNode("Magic Sparks", NodeType.PARTICLE_SYSTEM)
+                                showAddMenu = false
+                            }
+                        )
+                    }
+                }
+
+                // Collapse Panel Button
                 Box(
                     modifier = Modifier
-                        .size(16.dp)
+                        .size(15.dp)
                         .clip(RoundedCornerShape(3.dp))
                         .background(EngineCardBg)
                         .border(0.5.dp, StudioBorder, RoundedCornerShape(3.dp))
-                        .clickable { showAddMenu = true }
-                        .testTag("add_object_button"),
+                        .clickable { onCollapse() }
+                        .testTag("collapse_hierarchy_button"),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Add Object",
-                        tint = TextPrimary,
+                        imageVector = Icons.Default.KeyboardArrowLeft,
+                        contentDescription = "إغلاق لوحة العناصر",
+                        tint = TextSecondary,
                         modifier = Modifier.size(11.dp)
-                    )
-                }
-
-                DropdownMenu(
-                    expanded = showAddMenu,
-                    onDismissRequest = { showAddMenu = false }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("Player Character", fontSize = 9.5.sp) },
-                        onClick = {
-                            onAddNode("Player", NodeType.PLAYER)
-                            showAddMenu = false
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Enemy NPC", fontSize = 9.5.sp) },
-                        onClick = {
-                            onAddNode("Enemy", NodeType.ENEMY)
-                            showAddMenu = false
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Coin Pickup", fontSize = 9.5.sp) },
-                        onClick = {
-                            onAddNode("Coin", NodeType.SPRITE_OBJECT)
-                            showAddMenu = false
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Camera 2D", fontSize = 9.5.sp) },
-                        onClick = {
-                            onAddNode("Main Camera", NodeType.CAMERA)
-                            showAddMenu = false
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Light Source", fontSize = 9.5.sp) },
-                        onClick = {
-                            onAddNode("Point Light", NodeType.LIGHT)
-                            showAddMenu = false
-                        }
                     )
                 }
             }
@@ -190,7 +237,7 @@ fun StudioHierarchyPanel(
         Spacer(modifier = Modifier.height(4.dp))
 
         // ========================================================
-        // 2. Sub-tab Icons (Folder, 3D Cube, Layers)
+        // 2. Tab Selector (Tree vs Layers)
         // ========================================================
         Row(
             modifier = Modifier
@@ -198,169 +245,193 @@ fun StudioHierarchyPanel(
                 .height(18.dp)
                 .clip(RoundedCornerShape(3.dp))
                 .background(EngineCardBg)
-                .border(0.4.dp, StudioBorder, RoundedCornerShape(3.dp)),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(1.dp)
         ) {
-            listOf(
-                Icons.Default.Folder,
-                Icons.Default.ViewInAr,
-                Icons.Default.Layers
-            ).forEachIndexed { index, icon ->
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .background(if (selectedSubtab == index) StudioPurpleDark else Color.Transparent)
-                        .clickable { selectedSubtab = index },
-                    contentAlignment = Alignment.Center
-                ) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(if (selectedSubtab == 0) StudioPurple else Color.Transparent)
+                    .clickable { selectedSubtab = 0 },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Tree",
+                    color = if (selectedSubtab == 0) Color.White else TextSecondary,
+                    fontSize = 7.5.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(if (selectedSubtab == 1) StudioPurple else Color.Transparent)
+                    .clickable { selectedSubtab = 1 },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Layers",
+                    color = if (selectedSubtab == 1) Color.White else TextSecondary,
+                    fontSize = 7.5.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // ========================================================
+        // 3. Tab Content
+        // ========================================================
+        if (selectedSubtab == 0) {
+            // Search Input (Compact)
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("بحث...", fontSize = 7.5.sp, color = TextMuted) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(26.dp),
+                singleLine = true,
+                leadingIcon = {
                     Icon(
-                        imageVector = icon,
+                        imageVector = Icons.Default.Search,
                         contentDescription = null,
-                        tint = if (selectedSubtab == index) StudioPurpleLight else TextMuted,
+                        tint = TextMuted,
                         modifier = Modifier.size(10.dp)
                     )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        // ========================================================
-        // 3. Scene Objects Hierarchy List
-        // ========================================================
-        LazyColumn(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(1.dp)
-        ) {
-            items(sceneNodes, key = { it.id }) { node ->
-                val isSelected = node.id == selectedNodeId
-                val (nodeIcon, iconColor) = getNodeVisuals(node.type)
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(20.dp)
-                        .clip(RoundedCornerShape(3.dp))
-                        .background(if (isSelected) StudioPurpleDark else Color.Transparent)
-                        .border(
-                            width = if (isSelected) 0.6.dp else 0.dp,
-                            color = if (isSelected) StudioPurpleLight else Color.Transparent,
-                            shape = RoundedCornerShape(3.dp)
-                        )
-                        .clickable { onSelectNode(node.id) }
-                        .padding(horizontal = 3.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = nodeIcon,
-                        contentDescription = null,
-                        tint = iconColor,
-                        modifier = Modifier.size(11.dp)
-                    )
-
-                    Spacer(modifier = Modifier.width(3.dp))
-
-                    Text(
-                        text = node.name,
-                        color = if (isSelected) Color.White else TextPrimary,
-                        fontSize = 8.5.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                        maxLines = 1,
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    if (!node.isVisible) {
-                        Icon(
-                            imageVector = Icons.Default.VisibilityOff,
-                            contentDescription = null,
-                            tint = TextMuted,
-                            modifier = Modifier.size(9.dp)
-                        )
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        // ========================================================
-        // 4. LAYERS Section (Bottom of Left Panel)
-        // ========================================================
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(3.dp))
-                .background(EngineCardBg)
-                .border(0.4.dp, StudioBorder, RoundedCornerShape(3.dp))
-                .padding(3.dp)
-        ) {
-            Text(
-                text = "LAYERS",
-                color = TextSecondary,
-                fontSize = 7.5.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 0.4.sp,
-                modifier = Modifier.padding(bottom = 2.dp)
+                },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = StudioPurpleLight,
+                    unfocusedBorderColor = StudioBorder,
+                    focusedContainerColor = EngineCardBg,
+                    unfocusedContainerColor = EngineCardBg,
+                    focusedTextColor = TextPrimary,
+                    unfocusedTextColor = TextPrimary
+                ),
+                shape = RoundedCornerShape(4.dp)
             )
 
-            layers.values.forEach { layer ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(16.dp)
-                        .padding(vertical = 1.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
+            Spacer(modifier = Modifier.height(3.dp))
+
+            // Scene Node Tree List
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                items(items = filteredNodes, key = { it.id }) { node ->
+                    val isSelected = node.id == selectedNodeId
+                    val (icon, tint) = getNodeIconAndColor(node.type)
+
                     Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(20.dp)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(if (isSelected) StudioPurpleDark else EngineCardBg)
+                            .border(
+                                width = if (isSelected) 0.8.dp else 0.4.dp,
+                                color = if (isSelected) StudioPurpleLight else StudioBorder,
+                                shape = RoundedCornerShape(3.dp)
+                            )
+                            .clickable { onSelectNode(node.id) }
+                            .padding(horizontal = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f)
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Box(
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f, fill = false)
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                tint = tint,
+                                modifier = Modifier.size(10.dp)
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = node.name,
+                                color = if (isSelected) Color.White else TextPrimary,
+                                fontSize = 7.5.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                maxLines = 1
+                            )
+                        }
+
+                        // Visibility Toggle
+                        Icon(
+                            imageVector = if (node.isVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            contentDescription = "إظهار/إخفاء",
+                            tint = if (node.isVisible) TextSecondary else TextMuted,
                             modifier = Modifier
-                                .size(4.dp)
-                                .clip(CircleShape)
-                                .background(layer.color)
-                        )
-
-                        Spacer(modifier = Modifier.width(3.dp))
-
-                        Text(
-                            text = layer.name,
-                            color = TextPrimary,
-                            fontSize = 7.5.sp,
-                            maxLines = 1
+                                .size(9.dp)
+                                .clickable {
+                                    onToggleNodeVisibility(node.id)
+                                }
                         )
                     }
-
+                }
+            }
+        } else {
+            // Layers List
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                items(items = layers.values.toList(), key = { it.id }) { layer ->
                     Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(20.dp)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(EngineCardBg)
+                            .border(0.4.dp, StudioBorder, RoundedCornerShape(3.dp))
+                            .padding(horizontal = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Icon(
-                            imageVector = if (layer.isVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                            contentDescription = null,
-                            tint = if (layer.isVisible) TextSecondary else TextMuted,
-                            modifier = Modifier
-                                .size(9.dp)
-                                .clickable {
-                                    layers[layer.id] = layer.copy(isVisible = !layer.isVisible)
-                                }
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(5.dp)
+                                    .clip(CircleShape)
+                                    .background(layer.color)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = layer.name,
+                                color = TextPrimary,
+                                fontSize = 7.5.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
 
-                        Icon(
-                            imageVector = if (layer.isLocked) Icons.Default.Lock else Icons.Default.LockOpen,
-                            contentDescription = null,
-                            tint = if (layer.isLocked) StudioYellow else TextMuted,
-                            modifier = Modifier
-                                .size(9.dp)
-                                .clickable {
-                                    layers[layer.id] = layer.copy(isLocked = !layer.isLocked)
-                                }
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (layer.isVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                contentDescription = null,
+                                tint = if (layer.isVisible) TextSecondary else TextMuted,
+                                modifier = Modifier.size(9.dp)
+                            )
+                            Icon(
+                                imageVector = if (layer.isLocked) Icons.Default.Lock else Icons.Default.LockOpen,
+                                contentDescription = null,
+                                tint = if (layer.isLocked) StudioRed else TextMuted,
+                                modifier = Modifier.size(9.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -368,10 +439,10 @@ fun StudioHierarchyPanel(
     }
 }
 
-private fun getNodeVisuals(type: NodeType): Pair<ImageVector, Color> {
+private fun getNodeIconAndColor(type: NodeType): Pair<ImageVector, Color> {
     return when (type) {
         NodeType.PLAYER -> Icons.Default.Person to StudioPurpleLight
-        NodeType.ENEMY -> Icons.Default.Widgets to StudioRed
+        NodeType.ENEMY -> Icons.Default.Token to StudioRed
         NodeType.PLATFORM -> Icons.Default.Description to StudioGreen
         NodeType.SPRITE_OBJECT -> Icons.Default.Token to StudioYellow
         NodeType.CAMERA -> Icons.Default.Videocam to StudioBlue

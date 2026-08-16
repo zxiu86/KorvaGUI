@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Psychology
@@ -38,6 +39,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -74,292 +76,103 @@ import com.example.ui.theme.TextSecondary
 @Composable
 fun StudioInspector(
     selectedNode: SceneNode?,
+    onCollapse: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    var isPhysicsExpanded by remember { mutableStateOf(true) }
-    var isBrainExpanded by remember { mutableStateOf(false) }
-    var isSpriteExpanded by remember { mutableStateOf(false) }
-    var isAnimationExpanded by remember { mutableStateOf(false) }
-    var isAudioExpanded by remember { mutableStateOf(false) }
-    var isHealthExpanded by remember { mutableStateOf(false) }
+    var inspectorTab by remember { mutableIntStateOf(0) } // 0: Transform/Phys, 1: Visual/Anim, 2: Script/Audio
 
     // Physics Parameters State
     var gravityEnabled by remember { mutableStateOf(true) }
-    var gravityX by remember { mutableStateOf("0") }
-    var gravityY by remember { mutableStateOf("980") }
     var massValue by remember { mutableStateOf(1.0f) }
     var frictionValue by remember { mutableStateOf(0.2f) }
+    var bounceValue by remember { mutableStateOf(0.1f) }
     var bodyType by remember { mutableStateOf("Dynamic") }
     var showBodyTypeMenu by remember { mutableStateOf(false) }
-    var collisionLayers by remember { mutableStateOf(setOf(1, 2)) }
 
     Column(
         modifier = modifier
             .fillMaxHeight()
-            .width(135.dp)
+            .width(140.dp)
             .background(EngineSurface)
             .border(0.6.dp, StudioBorder)
             .padding(4.dp)
     ) {
-        LazyColumn(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(3.dp)
+        // ========================================================
+        // 1. Inspector Header + Collapse Chevron
+        // ========================================================
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // 1. Brain Card
-            item {
-                CompactInspectorCard(
-                    title = "Brain",
-                    subtitle = "AI Agent",
-                    icon = Icons.Default.Psychology,
-                    iconTint = StudioBlue,
-                    isExpanded = isBrainExpanded,
-                    onToggle = { isBrainExpanded = !isBrainExpanded }
-                ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "INSPECTOR",
+                    color = TextSecondary,
+                    fontSize = 7.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.5.sp
+                )
+                Spacer(modifier = Modifier.width(3.dp))
+                selectedNode?.let {
                     Text(
-                        text = "BehaviorTree:\nPlayerAgent.bt",
-                        color = TextSecondary,
-                        fontSize = 7.5.sp,
-                        fontFamily = FontFamily.Monospace
+                        text = it.name,
+                        color = StudioPurpleLight,
+                        fontSize = 7.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
                     )
                 }
             }
 
-            // 2. Sprite Card
-            item {
-                CompactInspectorCard(
-                    title = "Sprite",
-                    subtitle = "Appearance",
-                    icon = Icons.Default.Image,
-                    iconTint = StudioPurpleLight,
-                    isExpanded = isSpriteExpanded,
-                    onToggle = { isSpriteExpanded = !isSpriteExpanded }
+            Box(
+                modifier = Modifier
+                    .size(15.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(EngineCardBg)
+                    .border(0.5.dp, StudioBorder, RoundedCornerShape(3.dp))
+                    .clickable { onCollapse() }
+                    .testTag("collapse_inspector_button"),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowRight,
+                    contentDescription = "إغلاق لوحة الخصائص",
+                    tint = TextSecondary,
+                    modifier = Modifier.size(11.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // ========================================================
+        // 2. Compact Tab Selector (Transform, Visual, Script)
+        // ========================================================
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(18.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(EngineCardBg)
+                .padding(1.dp),
+            horizontalArrangement = Arrangement.spacedBy(1.dp)
+        ) {
+            listOf("Physics", "Visual", "Scripts").forEachIndexed { index, title ->
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(if (inspectorTab == index) StudioPurple else Color.Transparent)
+                        .clickable { inspectorTab = index },
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Sheet: hero_knight\nFilter: PixelArt",
-                        color = TextSecondary,
-                        fontSize = 7.5.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
-            }
-
-            // 3. Physics Card (Expanded by default)
-            item {
-                CompactInspectorCard(
-                    title = "Physics",
-                    subtitle = "Collision/Rigid",
-                    icon = Icons.Default.ViewInAr,
-                    iconTint = StudioGreen,
-                    isExpanded = isPhysicsExpanded,
-                    onToggle = { isPhysicsExpanded = !isPhysicsExpanded }
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        // Gravity Switch
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "Gravity",
-                                color = TextPrimary,
-                                fontSize = 8.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Switch(
-                                checked = gravityEnabled,
-                                onCheckedChange = { gravityEnabled = it },
-                                modifier = Modifier.scale(0.55f),
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = Color.White,
-                                    checkedTrackColor = StudioPurple
-                                )
-                            )
-                        }
-
-                        // Gravity X/Y
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(3.dp)
-                        ) {
-                            CompactInputField(label = "GX", value = gravityX, modifier = Modifier.weight(1f))
-                            CompactInputField(label = "GY", value = gravityY, modifier = Modifier.weight(1f))
-                        }
-
-                        // Mass Slider
-                        Column {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("Mass", color = TextSecondary, fontSize = 7.5.sp)
-                                Text("${String.format("%.1f", massValue)}kg", color = StudioPurpleLight, fontSize = 7.5.sp, fontFamily = FontFamily.Monospace)
-                            }
-                            Slider(
-                                value = massValue,
-                                onValueChange = { massValue = it },
-                                valueRange = 0.1f..10f,
-                                modifier = Modifier.height(14.dp),
-                                colors = SliderDefaults.colors(
-                                    thumbColor = StudioPurpleLight,
-                                    activeTrackColor = StudioPurple
-                                )
-                            )
-                        }
-
-                        // Friction Slider
-                        Column {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("Friction", color = TextSecondary, fontSize = 7.5.sp)
-                                Text("${(frictionValue * 100).toInt()}%", color = StudioPurpleLight, fontSize = 7.5.sp, fontFamily = FontFamily.Monospace)
-                            }
-                            Slider(
-                                value = frictionValue,
-                                onValueChange = { frictionValue = it },
-                                valueRange = 0f..1f,
-                                modifier = Modifier.height(14.dp),
-                                colors = SliderDefaults.colors(
-                                    thumbColor = StudioPurpleLight,
-                                    activeTrackColor = StudioPurple
-                                )
-                            )
-                        }
-
-                        // Body Type Selector
-                        Box {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(18.dp)
-                                    .clip(RoundedCornerShape(3.dp))
-                                    .background(EngineSurface)
-                                    .border(0.4.dp, StudioBorder, RoundedCornerShape(3.dp))
-                                    .clickable { showBodyTypeMenu = true }
-                                    .padding(horizontal = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = bodyType,
-                                    color = StudioPurpleLight,
-                                    fontSize = 8.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Icon(
-                                    imageVector = Icons.Default.KeyboardArrowDown,
-                                    contentDescription = null,
-                                    tint = TextSecondary,
-                                    modifier = Modifier.size(10.dp)
-                                )
-                            }
-
-                            DropdownMenu(
-                                expanded = showBodyTypeMenu,
-                                onDismissRequest = { showBodyTypeMenu = false }
-                            ) {
-                                listOf("Dynamic", "Kinematic", "Static").forEach { type ->
-                                    DropdownMenuItem(
-                                        text = { Text(type, fontSize = 9.sp) },
-                                        onClick = {
-                                            bodyType = type
-                                            showBodyTypeMenu = false
-                                        }
-                                    )
-                                }
-                            }
-                        }
-
-                        // Collision Layers (1, 2, 3, 4)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(2.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("Layers:", color = TextMuted, fontSize = 7.sp)
-                            (1..4).forEach { layer ->
-                                val active = collisionLayers.contains(layer)
-                                Box(
-                                    modifier = Modifier
-                                        .size(14.dp)
-                                        .clip(RoundedCornerShape(2.dp))
-                                        .background(if (active) StudioPurple else EngineSurface)
-                                        .border(0.4.dp, if (active) StudioPurpleLight else StudioBorder, RoundedCornerShape(2.dp))
-                                        .clickable {
-                                            collisionLayers = if (active) collisionLayers - layer else collisionLayers + layer
-                                        },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = "$layer",
-                                        color = if (active) Color.White else TextMuted,
-                                        fontSize = 7.5.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // 4. Animation Card
-            item {
-                CompactInspectorCard(
-                    title = "Animation",
-                    subtitle = "State Machine",
-                    icon = Icons.Default.DirectionsRun,
-                    iconTint = StudioOrange,
-                    isExpanded = isAnimationExpanded,
-                    onToggle = { isAnimationExpanded = !isAnimationExpanded }
-                ) {
-                    Text(
-                        text = "Clip: Idle (Loop)\nSpeed: 1.0x",
-                        color = TextSecondary,
-                        fontSize = 7.5.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
-            }
-
-            // 5. Audio Card
-            item {
-                CompactInspectorCard(
-                    title = "Audio",
-                    subtitle = "2D Sound",
-                    icon = Icons.Default.MusicNote,
-                    iconTint = StudioPink,
-                    isExpanded = isAudioExpanded,
-                    onToggle = { isAudioExpanded = !isAudioExpanded }
-                ) {
-                    Text(
-                        text = "SFX: footstep_grass\nVolume: 80%",
-                        color = TextSecondary,
-                        fontSize = 7.5.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
-            }
-
-            // 6. Health Card
-            item {
-                CompactInspectorCard(
-                    title = "Health",
-                    subtitle = "Stats",
-                    icon = Icons.Default.Favorite,
-                    iconTint = StudioRed,
-                    isExpanded = isHealthExpanded,
-                    onToggle = { isHealthExpanded = !isHealthExpanded }
-                ) {
-                    Text(
-                        text = "HP: 100/100\nArmor: 15",
-                        color = TextSecondary,
-                        fontSize = 7.5.sp,
-                        fontFamily = FontFamily.Monospace
+                        text = title,
+                        color = if (inspectorTab == index) Color.White else TextSecondary,
+                        fontSize = 7.sp,
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
@@ -367,36 +180,225 @@ fun StudioInspector(
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        // Bottom Add Component Button (Compact: 22dp)
-        Box(
+        // ========================================================
+        // 3. Tab Specific Properties (Clean, Minimal, High-Performance)
+        // ========================================================
+        LazyColumn(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(22.dp)
-                .clip(RoundedCornerShape(4.dp))
-                .background(
-                    Brush.horizontalGradient(
-                        listOf(StudioPurpleDark, StudioPurple)
-                    )
-                )
-                .border(0.6.dp, StudioPurpleBorder, RoundedCornerShape(4.dp))
-                .clickable { /* Add new component */ }
-                .padding(horizontal = 4.dp),
-            contentAlignment = Alignment.Center
+                .weight(1f)
+                .fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(11.dp)
-                )
-                Spacer(modifier = Modifier.width(3.dp))
-                Text(
-                    text = "+ Add Component",
-                    color = Color.White,
-                    fontSize = 8.5.sp,
-                    fontWeight = FontWeight.Bold
-                )
+            if (inspectorTab == 0) {
+                // --- TRANSFORM & PHYSICS TAB ---
+                item {
+                    // Transform Section
+                    CompactInspectorCard(
+                        title = "Transform 2D",
+                        subtitle = "Position & Scale",
+                        icon = Icons.Default.ViewInAr,
+                        iconTint = StudioPurpleLight,
+                        isExpanded = true,
+                        onToggle = {}
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            // X & Y Position
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                MiniCoordBadge("X", "${selectedNode?.posX?.toInt() ?: 0} px", StudioRed, Modifier.weight(1f))
+                                MiniCoordBadge("Y", "${selectedNode?.posY?.toInt() ?: 0} px", StudioGreen, Modifier.weight(1f))
+                            }
+                            // Scale & Rotation
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                MiniCoordBadge("S", "${selectedNode?.scale ?: 1.0}x", StudioBlue, Modifier.weight(1f))
+                                MiniCoordBadge("R", "${selectedNode?.rotation?.toInt() ?: 0}°", StudioOrange, Modifier.weight(1f))
+                            }
+                        }
+                    }
+                }
+
+                item {
+                    // Rigidbody 2D Section
+                    CompactInspectorCard(
+                        title = "Rigidbody 2D",
+                        subtitle = "Physics Engine",
+                        icon = Icons.Default.DirectionsRun,
+                        iconTint = StudioOrange,
+                        isExpanded = true,
+                        onToggle = {}
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            // Body Type selector
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Type:", color = TextMuted, fontSize = 7.sp)
+                                Box {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(3.dp))
+                                            .background(EngineSurface)
+                                            .border(0.4.dp, StudioBorder, RoundedCornerShape(3.dp))
+                                            .clickable { showBodyTypeMenu = true }
+                                            .padding(horizontal = 4.dp, vertical = 1.dp)
+                                    ) {
+                                        Text(bodyType, color = TextPrimary, fontSize = 7.5.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                    DropdownMenu(
+                                        expanded = showBodyTypeMenu,
+                                        onDismissRequest = { showBodyTypeMenu = false }
+                                    ) {
+                                        listOf("Dynamic", "Static", "Kinematic").forEach { type ->
+                                            DropdownMenuItem(
+                                                text = { Text(type, fontSize = 9.sp) },
+                                                onClick = {
+                                                    bodyType = type
+                                                    showBodyTypeMenu = false
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Gravity Toggle
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Simulate Gravity", color = TextSecondary, fontSize = 7.sp)
+                                Switch(
+                                    checked = gravityEnabled,
+                                    onCheckedChange = { gravityEnabled = it },
+                                    modifier = Modifier.scale(0.55f),
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = Color.White,
+                                        checkedTrackColor = StudioPurple
+                                    )
+                                )
+                            }
+
+                            // Mass Slider
+                            Column {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Mass (kg):", color = TextMuted, fontSize = 7.sp)
+                                    Text(String.format("%.1f", massValue), color = StudioPurpleLight, fontSize = 7.sp, fontFamily = FontFamily.Monospace)
+                                }
+                                Slider(
+                                    value = massValue,
+                                    onValueChange = { massValue = it },
+                                    valueRange = 0.1f..10.0f,
+                                    modifier = Modifier.height(14.dp),
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = StudioPurpleLight,
+                                        activeTrackColor = StudioPurple
+                                    )
+                                )
+                            }
+
+                            // Friction Slider
+                            Column {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Friction:", color = TextMuted, fontSize = 7.sp)
+                                    Text(String.format("%.2f", frictionValue), color = StudioPurpleLight, fontSize = 7.sp, fontFamily = FontFamily.Monospace)
+                                }
+                                Slider(
+                                    value = frictionValue,
+                                    onValueChange = { frictionValue = it },
+                                    valueRange = 0.0f..1.0f,
+                                    modifier = Modifier.height(14.dp),
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = StudioPurpleLight,
+                                        activeTrackColor = StudioPurple
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+            } else if (inspectorTab == 1) {
+                // --- VISUAL & ANIMATION TAB ---
+                item {
+                    CompactInspectorCard(
+                        title = "Sprite Renderer",
+                        subtitle = "Shader & Texture",
+                        icon = Icons.Default.Image,
+                        iconTint = StudioPink,
+                        isExpanded = true,
+                        onToggle = {}
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text("Texture: atlas_hero_v1.png", color = TextPrimary, fontSize = 7.sp, fontFamily = FontFamily.Monospace)
+                            Text("Shader: Lit/Diffuse2D", color = TextMuted, fontSize = 6.5.sp)
+                            Text("Sorting Layer: Default [0]", color = StudioBlue, fontSize = 6.5.sp)
+                        }
+                    }
+                }
+
+                item {
+                    CompactInspectorCard(
+                        title = "Animator 2D",
+                        subtitle = "State Machine",
+                        icon = Icons.Default.DirectionsRun,
+                        iconTint = StudioYellow,
+                        isExpanded = true,
+                        onToggle = {}
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text("Controller: HeroAnimTree", color = TextPrimary, fontSize = 7.sp)
+                            Text("Current State: IDLE_LOOP", color = StudioGreen, fontSize = 6.5.sp, fontWeight = FontWeight.Bold)
+                            Text("FPS Rate: 24 frames/sec", color = TextMuted, fontSize = 6.5.sp)
+                        }
+                    }
+                }
+            } else {
+                // --- SCRIPTS & AUDIO TAB ---
+                item {
+                    CompactInspectorCard(
+                        title = "AI Behavior Tree",
+                        subtitle = "Logic & Events",
+                        icon = Icons.Default.Psychology,
+                        iconTint = StudioBlue,
+                        isExpanded = true,
+                        onToggle = {}
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text("Script: PlayerController.kt", color = TextPrimary, fontSize = 7.sp, fontFamily = FontFamily.Monospace)
+                            Text("Speed: 180.0 px/s", color = TextMuted, fontSize = 6.5.sp)
+                            Text("Jump Force: 420.0 N", color = TextMuted, fontSize = 6.5.sp)
+                        }
+                    }
+                }
+
+                item {
+                    CompactInspectorCard(
+                        title = "Audio Source",
+                        subtitle = "SFX & Ambience",
+                        icon = Icons.Default.MusicNote,
+                        iconTint = StudioGreen,
+                        isExpanded = true,
+                        onToggle = {}
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text("Clip: sfx_jump_01.ogg", color = TextPrimary, fontSize = 7.sp)
+                            Text("Volume: 0.85 (Spatial 2D)", color = TextMuted, fontSize = 6.5.sp)
+                        }
+                    }
+                }
             }
         }
     }
@@ -412,97 +414,89 @@ private fun CompactInspectorCard(
     onToggle: () -> Unit,
     content: @Composable () -> Unit
 ) {
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(3.dp))
+            .clip(RoundedCornerShape(4.dp))
             .background(EngineCardBg)
-            .border(0.4.dp, StudioBorder, RoundedCornerShape(3.dp))
+            .border(0.5.dp, StudioBorder, RoundedCornerShape(4.dp))
             .padding(3.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onToggle() },
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
+        Column {
             Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggle() },
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = iconTint,
-                    modifier = Modifier.size(11.dp)
-                )
-                Spacer(modifier = Modifier.width(3.dp))
-                Column {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f, fill = false)
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = iconTint,
+                        modifier = Modifier.size(10.dp)
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
                     Text(
                         text = title,
                         color = TextPrimary,
-                        fontSize = 8.5.sp,
+                        fontSize = 7.5.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1
                     )
                 }
+
+                Icon(
+                    imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = TextMuted,
+                    modifier = Modifier.size(9.dp)
+                )
             }
 
-            Icon(
-                imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                contentDescription = null,
-                tint = TextSecondary,
-                modifier = Modifier.size(10.dp)
-            )
-        }
-
-        AnimatedVisibility(visible = isExpanded) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 3.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(0.4.dp)
-                        .background(StudioBorder)
-                )
-                Spacer(modifier = Modifier.height(3.dp))
-                content()
+            AnimatedVisibility(visible = isExpanded) {
+                Column(modifier = Modifier.padding(top = 3.dp)) {
+                    content()
+                }
             }
         }
     }
 }
 
 @Composable
-private fun CompactInputField(
-    label: String,
+private fun MiniCoordBadge(
+    axis: String,
     value: String,
+    accentColor: Color,
     modifier: Modifier = Modifier
 ) {
-    Row(
+    Box(
         modifier = modifier
-            .height(16.dp)
-            .clip(RoundedCornerShape(2.dp))
+            .height(18.dp)
+            .clip(RoundedCornerShape(3.dp))
             .background(EngineSurface)
-            .border(0.4.dp, StudioBorder, RoundedCornerShape(2.dp))
+            .border(0.4.dp, StudioBorder, RoundedCornerShape(3.dp))
             .padding(horizontal = 3.dp),
-        verticalAlignment = Alignment.CenterVertically
+        contentAlignment = Alignment.CenterStart
     ) {
-        Text(
-            text = "$label:",
-            color = TextMuted,
-            fontSize = 7.sp,
-            fontFamily = FontFamily.Monospace
-        )
-        Spacer(modifier = Modifier.width(2.dp))
-        Text(
-            text = value,
-            color = TextPrimary,
-            fontSize = 7.5.sp,
-            fontFamily = FontFamily.Monospace
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "$axis:",
+                color = accentColor,
+                fontSize = 7.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.width(2.dp))
+            Text(
+                text = value,
+                color = TextPrimary,
+                fontSize = 6.5.sp,
+                fontFamily = FontFamily.Monospace
+            )
+        }
     }
 }

@@ -417,6 +417,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         addLog(LogLevel.WARN, "تم حذف الكائن: $nodeName")
     }
 
+    fun toggleNodeVisibility(nodeId: String) {
+        _sceneNodes.update { list ->
+            list.map { node ->
+                if (node.id == nodeId) {
+                    node.copy(isVisible = !node.isVisible)
+                } else node
+            }
+        }
+    }
+
     fun toggleSimulation() {
         val newState = !_isSimulationPlaying.value
         _isSimulationPlaying.value = newState

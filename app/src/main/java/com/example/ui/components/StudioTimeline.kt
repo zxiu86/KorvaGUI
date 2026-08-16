@@ -43,10 +43,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ui.theme.EngineBackground
 import com.example.ui.theme.EngineCardBg
 import com.example.ui.theme.EngineSurface
 import com.example.ui.theme.StudioBorder
@@ -68,6 +70,7 @@ data class AnimationTrack(
 fun StudioTimeline(
     isPlaying: Boolean,
     onTogglePlay: () -> Unit,
+    onCollapse: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var selectedClip by remember { mutableStateOf("Idle") }
@@ -86,87 +89,41 @@ fun StudioTimeline(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .height(78.dp)
+            .height(68.dp)
             .background(EngineSurface)
             .border(width = 0.6.dp, color = StudioBorder)
     ) {
         // ========================================================
-        // 1. Timeline Header & Transport Controls (Compact: 22dp)
+        // 1. Timeline Header & Transport Controls (Compact: 20dp)
         // ========================================================
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(22.dp)
+                .height(20.dp)
                 .background(EngineCardBg)
                 .border(0.4.dp, StudioBorder)
                 .padding(horizontal = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Title
+            // Title & Clip Selector
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = "TIMELINE",
                     color = TextSecondary,
-                    fontSize = 8.sp,
+                    fontSize = 7.5.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 0.5.sp
-                )
-            }
-
-            // Transport: Prev, Play, Next, Timecode
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.SkipPrevious,
-                    contentDescription = "Previous Frame",
-                    tint = TextSecondary,
-                    modifier = Modifier.size(11.dp)
-                )
-
-                Box(
-                    modifier = Modifier
-                        .size(15.dp)
-                        .clip(CircleShape)
-                        .background(StudioPurple)
-                        .clickable { onTogglePlay() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = "Play Timeline",
-                        tint = Color.White,
-                        modifier = Modifier.size(9.dp)
-                    )
-                }
-
-                Icon(
-                    imageVector = Icons.Default.SkipNext,
-                    contentDescription = "Next Frame",
-                    tint = TextSecondary,
-                    modifier = Modifier.size(11.dp)
-                )
-
-                Spacer(modifier = Modifier.width(3.dp))
-
-                Text(
-                    text = "00:00:00",
-                    color = TextPrimary,
-                    fontSize = 8.sp,
-                    fontFamily = FontFamily.Monospace
                 )
 
                 Spacer(modifier = Modifier.width(4.dp))
 
-                // Clip Selector Dropdown
                 Box {
                     Row(
                         modifier = Modifier
                             .clip(RoundedCornerShape(3.dp))
                             .background(EngineSurface)
-                            .border(0.5.dp, StudioBorder, RoundedCornerShape(3.dp))
+                            .border(0.4.dp, StudioBorder, RoundedCornerShape(3.dp))
                             .clickable { showClipDropdown = true }
                             .padding(horizontal = 4.dp, vertical = 1.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -174,7 +131,7 @@ fun StudioTimeline(
                         Text(
                             text = selectedClip,
                             color = StudioPurpleLight,
-                            fontSize = 8.sp,
+                            fontSize = 7.5.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.width(2.dp))
@@ -182,7 +139,7 @@ fun StudioTimeline(
                             imageVector = Icons.Default.KeyboardArrowDown,
                             contentDescription = null,
                             tint = TextSecondary,
-                            modifier = Modifier.size(10.dp)
+                            modifier = Modifier.size(9.dp)
                         )
                     }
 
@@ -190,7 +147,7 @@ fun StudioTimeline(
                         expanded = showClipDropdown,
                         onDismissRequest = { showClipDropdown = false }
                     ) {
-                        listOf("Idle", "Run", "Jump", "Attack", "Hit").forEach { clip ->
+                        listOf("Idle", "Run", "Jump", "Attack").forEach { clip ->
                             DropdownMenuItem(
                                 text = { Text(clip, fontSize = 9.sp) },
                                 onClick = {
@@ -203,84 +160,104 @@ fun StudioTimeline(
                 }
             }
 
-            // Right side stats (FPS + Length)
+            // Transport: Prev, Play, Next, Timecode
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
+                Icon(
+                    imageVector = Icons.Default.SkipPrevious,
+                    contentDescription = "Previous Frame",
+                    tint = TextSecondary,
+                    modifier = Modifier.size(10.dp)
+                )
+
+                Box(
+                    modifier = Modifier
+                        .size(14.dp)
+                        .clip(CircleShape)
+                        .background(StudioPurple)
+                        .clickable { onTogglePlay() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = "Play Timeline",
+                        tint = Color.White,
+                        modifier = Modifier.size(8.dp)
+                    )
+                }
+
+                Icon(
+                    imageVector = Icons.Default.SkipNext,
+                    contentDescription = "Next Frame",
+                    tint = TextSecondary,
+                    modifier = Modifier.size(10.dp)
+                )
+
                 Text(
-                    text = "60 FPS",
+                    text = "00:00:12 / 60 FPS",
                     color = TextMuted,
-                    fontSize = 7.5.sp,
+                    fontSize = 7.sp,
                     fontFamily = FontFamily.Monospace
                 )
-                Text(
-                    text = "0.80s",
-                    color = StudioPurpleLight,
-                    fontSize = 7.5.sp,
-                    fontFamily = FontFamily.Monospace
-                )
+
+                // Collapse Button
+                Box(
+                    modifier = Modifier
+                        .size(14.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(EngineSurface)
+                        .border(0.4.dp, StudioBorder, RoundedCornerShape(2.dp))
+                        .clickable { onCollapse() }
+                        .testTag("collapse_timeline_button"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowDown,
+                        contentDescription = "إغلاق شريط الحركة",
+                        tint = TextSecondary,
+                        modifier = Modifier.size(10.dp)
+                    )
+                }
             }
         }
 
         // ========================================================
-        // 2. Timeline Tracks and Keyframe Canvas (Compact: 56dp)
+        // 2. Timeline Tracks and Keyframe Grid
         // ========================================================
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
         ) {
-            // Left Track List (Narrow: 65dp)
+            // Track Labels Column
             Column(
                 modifier = Modifier
-                    .width(65.dp)
+                    .width(60.dp)
                     .fillMaxHeight()
                     .background(EngineCardBg)
-                    .border(width = 0.4.dp, color = StudioBorder)
+                    .border(0.4.dp, StudioBorder)
+                    .padding(2.dp),
+                verticalArrangement = Arrangement.spacedBy(1.dp)
             ) {
-                // Header spacer
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(11.dp)
-                        .background(EngineSurface)
-                        .padding(horizontal = 3.dp),
-                    contentAlignment = Alignment.CenterStart
-                ) {
-                    Text(
-                        text = "TRACKS",
-                        color = TextMuted,
-                        fontSize = 7.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                // Track Names
-                tracks.forEach { track ->
+                tracks.take(2).forEach { track ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(11.dp)
+                            .height(18.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(if (track.name == selectedClip) StudioPurpleDark else EngineSurface)
                             .padding(horizontal = 3.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(3.dp)
-                                    .clip(CircleShape)
-                                    .background(track.color)
-                            )
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text(
-                                text = track.name,
-                                color = TextPrimary,
-                                fontSize = 7.5.sp,
-                                maxLines = 1
-                            )
-                        }
+                        Text(
+                            text = track.name,
+                            color = TextPrimary,
+                            fontSize = 7.sp,
+                            fontWeight = FontWeight.Medium
+                        )
                         Icon(
                             imageVector = Icons.Default.Visibility,
                             contentDescription = null,
@@ -291,120 +268,58 @@ fun StudioTimeline(
                 }
             }
 
-            // Right Keyframe Area with horizontal scroll
+            // Keyframe Grid Area
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
-                    .background(EngineSurface)
                     .horizontalScroll(timelineScroll)
+                    .background(EngineBackground)
             ) {
-                // Canvas Grid Lines and Ticks
                 Canvas(
                     modifier = Modifier
                         .width(400.dp)
                         .fillMaxHeight()
                 ) {
-                    val step = 30.dp.toPx()
-                    var x = 0f
-                    while (x < size.width) {
+                    val frameStep = 16.dp.toPx()
+                    var f = 0
+                    while (f * frameStep < size.width) {
+                        val x = f * frameStep
+                        val isMajor = f % 5 == 0
+
                         drawLine(
-                            color = Color(0xFF1E2433),
+                            color = if (isMajor) StudioBorder else Color(0x0CFFFFFF),
                             start = Offset(x, 0f),
                             end = Offset(x, size.height),
-                            strokeWidth = 0.5f
+                            strokeWidth = if (isMajor) 0.8f else 0.4f
                         )
-                        x += step
-                    }
-                }
 
-                Column(
-                    modifier = Modifier
-                        .width(400.dp)
-                        .fillMaxHeight()
-                ) {
-                    // Time Ruler Numbers
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(11.dp)
-                            .padding(start = 6.dp),
-                        horizontalArrangement = Arrangement.spacedBy(28.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        listOf("0:00", "0:05", "0:10", "0:15", "0:20", "0:25", "0:30", "0:35", "0:40", "0:50").forEach { t ->
-                            Text(
-                                text = t,
-                                color = TextMuted,
-                                fontSize = 6.5.sp,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        }
-                    }
-
-                    // Keyframe Strip Bars (Lightweight vector rendering)
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(1.dp)
-                    ) {
-                        tracks.forEachIndexed { idx, track ->
-                            val trackWidth = (120 + idx * 25).dp
-
-                            Box(
-                                modifier = Modifier
-                                    .padding(start = 6.dp)
-                                    .width(trackWidth)
-                                    .height(10.dp)
-                                    .clip(RoundedCornerShape(2.dp))
-                                    .background(
-                                        Brush.horizontalGradient(
-                                            listOf(StudioPurpleDark, StudioPurple.copy(alpha = 0.6f))
-                                        )
-                                    )
-                                    .border(0.4.dp, StudioPurpleLight.copy(alpha = 0.4f), RoundedCornerShape(2.dp))
-                                    .padding(horizontal = 2.dp),
-                                contentAlignment = Alignment.CenterStart
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    for (i in 0 until track.framesCount) {
-                                        // Lightweight Vector Diamond Keyframe
-                                        KeyframeDiamond(color = StudioPurpleLight)
-                                    }
-                                }
+                        // Keyframe Diamond on Active Track
+                        if (f == 0 || f == 4 || f == 8 || f == 12 || f == 16) {
+                            val diamondPath = Path().apply {
+                                val cy = 9.dp.toPx()
+                                moveTo(x, cy - 3.dp.toPx())
+                                lineTo(x + 3.dp.toPx(), cy)
+                                lineTo(x, cy + 3.dp.toPx())
+                                lineTo(x - 3.dp.toPx(), cy)
+                                close()
                             }
+                            drawPath(diamondPath, StudioPurpleLight)
                         }
-                    }
-                }
 
-                // Playhead red/purple indicator
-                Box(
-                    modifier = Modifier
-                        .padding(start = 6.dp)
-                        .width(1.dp)
-                        .fillMaxHeight()
-                        .background(StudioPurpleLight)
-                )
+                        f++
+                    }
+
+                    // Scrubber Playhead Line
+                    val playheadX = 4 * frameStep
+                    drawLine(
+                        color = Color(0xFFEF4444),
+                        start = Offset(playheadX, 0f),
+                        end = Offset(playheadX, size.height),
+                        strokeWidth = 1.2f
+                    )
+                }
             }
         }
-    }
-}
-
-@Composable
-private fun KeyframeDiamond(color: Color) {
-    Canvas(modifier = Modifier.size(6.dp)) {
-        val path = Path().apply {
-            moveTo(size.width / 2, 0f)
-            lineTo(size.width, size.height / 2)
-            lineTo(size.width / 2, size.height)
-            lineTo(0f, size.height / 2)
-            close()
-        }
-        drawPath(path = path, color = color)
     }
 }
