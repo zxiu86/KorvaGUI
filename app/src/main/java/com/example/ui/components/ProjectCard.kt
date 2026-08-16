@@ -30,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -37,15 +38,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.ProjectEntity
-import com.example.ui.theme.EngineBorder
 import com.example.ui.theme.EngineCardBg
-import com.example.ui.theme.EngineWhiteBorder
-import com.example.ui.theme.EngineWhiteGlass
-import com.example.ui.theme.EngineWhiteMuted
-import com.example.ui.theme.EngineWhitePrimary
-import com.example.ui.theme.EngineWhiteSubtle
-import com.example.ui.theme.EngineWhiteTranslucent
-import com.example.ui.theme.KorvaRed
+import com.example.ui.theme.StudioBorder
+import com.example.ui.theme.StudioPurple
+import com.example.ui.theme.StudioPurpleDark
+import com.example.ui.theme.StudioPurpleGlass
+import com.example.ui.theme.StudioPurpleLight
+import com.example.ui.theme.StudioRed
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
@@ -69,12 +68,7 @@ fun ProjectCard(
             .background(EngineCardBg)
             .border(
                 width = 0.6.dp,
-                brush = Brush.horizontalGradient(
-                    listOf(
-                        EngineWhiteBorder,
-                        EngineBorder
-                    )
-                ),
+                color = StudioBorder,
                 shape = RoundedCornerShape(6.dp)
             )
             .clickable { onClick() }
@@ -91,19 +85,19 @@ fun ProjectCard(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.weight(1f)
             ) {
-                // Icon Avatar (Compact: 26dp)
+                // Icon Avatar
                 Box(
                     modifier = Modifier
                         .size(26.dp)
                         .clip(RoundedCornerShape(5.dp))
-                        .background(EngineWhiteGlass)
-                        .border(0.6.dp, EngineWhiteBorder, RoundedCornerShape(5.dp)),
+                        .background(StudioPurpleDark.copy(alpha = 0.6f))
+                        .border(0.6.dp, StudioPurpleLight.copy(alpha = 0.4f), RoundedCornerShape(5.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Layers,
                         contentDescription = null,
-                        tint = EngineWhiteTranslucent,
+                        tint = StudioPurpleLight,
                         modifier = Modifier.size(13.dp)
                     )
                 }
@@ -123,17 +117,17 @@ fun ProjectCard(
 
                         Spacer(modifier = Modifier.width(4.dp))
 
-                        // Template Badge (Translucent White)
+                        // Template Badge
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(3.dp))
-                                .background(EngineWhiteSubtle)
-                                .border(0.5.dp, EngineWhiteBorder, RoundedCornerShape(3.dp))
+                                .background(StudioPurpleGlass)
+                                .border(0.5.dp, StudioPurpleLight.copy(alpha = 0.5f), RoundedCornerShape(3.dp))
                                 .padding(horizontal = 4.dp, vertical = 1.dp)
                         ) {
                             Text(
                                 text = project.templateType,
-                                color = EngineWhiteMuted,
+                                color = StudioPurpleLight,
                                 fontSize = 7.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -214,12 +208,11 @@ fun ProjectCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(3.dp)
             ) {
-                // Open Button (Translucent White)
+                // Open Button
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(4.dp))
-                        .background(EngineWhiteGlass)
-                        .border(0.6.dp, EngineWhiteBorder, RoundedCornerShape(4.dp))
+                        .background(StudioPurple)
                         .clickable { onClick() }
                         .padding(horizontal = 7.dp, vertical = 3.dp)
                         .testTag("open_project_btn_${project.id}")
@@ -228,13 +221,13 @@ fun ProjectCard(
                         Icon(
                             imageVector = Icons.Default.PlayArrow,
                             contentDescription = "فتح المشروع",
-                            tint = EngineWhitePrimary,
+                            tint = Color.White,
                             modifier = Modifier.size(10.dp)
                         )
                         Spacer(modifier = Modifier.width(2.dp))
                         Text(
                             text = "فتح",
-                            color = EngineWhitePrimary,
+                            color = Color.White,
                             fontSize = 8.5.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -252,7 +245,7 @@ fun ProjectCard(
                     Icon(
                         imageVector = Icons.Default.DeleteOutline,
                         contentDescription = "حذف المشروع",
-                        tint = KorvaRed.copy(alpha = 0.8f),
+                        tint = StudioRed.copy(alpha = 0.8f),
                         modifier = Modifier.size(12.dp)
                     )
                 }

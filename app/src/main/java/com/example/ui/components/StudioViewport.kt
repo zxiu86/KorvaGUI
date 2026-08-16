@@ -22,12 +22,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CropFree
 import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.OpenWith
 import androidx.compose.material.icons.filled.PanTool
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material.icons.filled.Transform
@@ -35,6 +37,8 @@ import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.material.icons.filled.ZoomIn
+import androidx.compose.material.icons.filled.ZoomOut
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -59,6 +63,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
@@ -102,7 +107,7 @@ fun StudioViewport(
     onNodeDrag: (dx: Float, dy: Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var activeTool by remember { mutableIntStateOf(1) } // 0: Pan, 1: Select, 2: Move, 3: Rotate, 4: Scale, 5: Grid Snap
+    var activeTool by remember { mutableIntStateOf(1) } // 0: Pan, 1: Select, 2: Move, 3: Rotate, 4: Scale
     var showGrid by remember { mutableStateOf(true) }
     var showSafeFrame by remember { mutableStateOf(true) }
     var showLighting by remember { mutableStateOf(true) }
@@ -177,7 +182,7 @@ fun StudioViewport(
             val centerX = canvasW / 2f + panOffsetX
             val centerY = canvasH / 2f + panOffsetY
 
-            // Pure Procedural Vector Engine Canvas
+            // Vector Engine Canvas
             Canvas(
                 modifier = Modifier
                     .fillMaxSize()
@@ -185,26 +190,26 @@ fun StudioViewport(
                         detectDragGestures { change, dragAmount ->
                             change.consume()
                             if (activeTool == 0) {
-                                // Pan tool
+                                // Pan Viewport
                                 panOffsetX += dragAmount.x
                                 panOffsetY += dragAmount.y
                             } else {
-                                // Node drag
+                                // Move Selected Node
                                 onNodeDrag(dragAmount.x, dragAmount.y)
                             }
                         }
                     }
             ) {
-                // A. Engine Dark Radial Background
+                // A. Obsidian Dark Gradient Studio Background
                 drawRect(
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            Color(0xFF0F172A),
-                            Color(0xFF0A0E1A),
-                            Color(0xFF05070D)
+                            Color(0xFF131522),
+                            Color(0xFF0C0E16),
+                            Color(0xFF08090E)
                         ),
                         center = Offset(centerX, centerY),
-                        radius = (canvasW.coerceAtLeast(canvasH)) * 0.8f
+                        radius = (canvasW.coerceAtLeast(canvasH)) * 0.85f
                     ),
                     size = size
                 )
@@ -219,7 +224,7 @@ fun StudioViewport(
                     var x = xStartMinor
                     while (x < size.width) {
                         drawLine(
-                            color = Color(0x0C94A3B8),
+                            color = Color(0x0E8B5CF6),
                             start = Offset(x, 0f),
                             end = Offset(x, size.height),
                             strokeWidth = 0.5f
@@ -231,7 +236,7 @@ fun StudioViewport(
                     var y = yStartMinor
                     while (y < size.height) {
                         drawLine(
-                            color = Color(0x0C94A3B8),
+                            color = Color(0x0E8B5CF6),
                             start = Offset(0f, y),
                             end = Offset(size.width, y),
                             strokeWidth = 0.5f
@@ -244,7 +249,7 @@ fun StudioViewport(
                     x = xStartMajor
                     while (x < size.width) {
                         drawLine(
-                            color = Color(0x1F94A3B8),
+                            color = Color(0x228B5CF6),
                             start = Offset(x, 0f),
                             end = Offset(x, size.height),
                             strokeWidth = 1f
@@ -256,7 +261,7 @@ fun StudioViewport(
                     y = yStartMajor
                     while (y < size.height) {
                         drawLine(
-                            color = Color(0x1F94A3B8),
+                            color = Color(0x228B5CF6),
                             start = Offset(0f, y),
                             end = Offset(size.width, y),
                             strokeWidth = 1f
@@ -265,30 +270,30 @@ fun StudioViewport(
                     }
                 }
 
-                // C. Safe Game Canvas Boundary Frame (16:9 Game World)
+                // C. Safe Game Canvas Boundary Frame (16:9 Game Box)
                 val safeFrameW = 380.dp.toPx() * zoomScale
                 val safeFrameH = (380.dp.toPx() * (9f / 16f)) * zoomScale
                 val frameLeft = centerX - safeFrameW / 2f
                 val frameTop = centerY - safeFrameH / 2f
 
                 if (showSafeFrame) {
-                    // Outer Mask Shading (Focus attention to active design canvas)
+                    // Outer Shading
                     drawRect(
-                        color = Color(0x35000000),
+                        color = Color(0x2A000000),
                         size = size
                     )
 
                     // Active Game Box Inner Light
                     drawRoundRect(
-                        color = Color(0x188B5CF6),
+                        color = Color(0x148B5CF6),
                         topLeft = Offset(frameLeft, frameTop),
                         size = Size(safeFrameW, safeFrameH),
                         cornerRadius = CornerRadius(6.dp.toPx())
                     )
 
-                    // Safe Design Border Frame (Glow neon border)
+                    // Safe Design Border Frame (Dashed Neon)
                     drawRoundRect(
-                        color = StudioPurple.copy(alpha = 0.6f),
+                        color = StudioPurple.copy(alpha = 0.65f),
                         topLeft = Offset(frameLeft, frameTop),
                         size = Size(safeFrameW, safeFrameH),
                         cornerRadius = CornerRadius(6.dp.toPx()),
@@ -300,129 +305,100 @@ fun StudioViewport(
 
                     // Corner Accent Brackets
                     val bracketLen = 14.dp.toPx()
-                    // Top-Left
                     drawLine(StudioPurpleLight, Offset(frameLeft, frameTop), Offset(frameLeft + bracketLen, frameTop), 2.5f)
                     drawLine(StudioPurpleLight, Offset(frameLeft, frameTop), Offset(frameLeft, frameTop + bracketLen), 2.5f)
-                    // Top-Right
                     drawLine(StudioPurpleLight, Offset(frameLeft + safeFrameW, frameTop), Offset(frameLeft + safeFrameW - bracketLen, frameTop), 2.5f)
                     drawLine(StudioPurpleLight, Offset(frameLeft + safeFrameW, frameTop), Offset(frameLeft + safeFrameW, frameTop + bracketLen), 2.5f)
-                    // Bottom-Left
                     drawLine(StudioPurpleLight, Offset(frameLeft, frameTop + safeFrameH), Offset(frameLeft + bracketLen, frameTop + safeFrameH), 2.5f)
                     drawLine(StudioPurpleLight, Offset(frameLeft, frameTop + safeFrameH), Offset(frameLeft, frameTop + safeFrameH - bracketLen), 2.5f)
-                    // Bottom-Right
                     drawLine(StudioPurpleLight, Offset(frameLeft + safeFrameW, frameTop + safeFrameH), Offset(frameLeft + safeFrameW - bracketLen, frameTop + safeFrameH), 2.5f)
                     drawLine(StudioPurpleLight, Offset(frameLeft + safeFrameW, frameTop + safeFrameH), Offset(frameLeft + safeFrameW, frameTop + safeFrameH - bracketLen), 2.5f)
                 }
 
                 // D. Primary Coordinate Origin Axes (X: Red, Y: Green)
-                // X Axis
                 drawLine(
-                    color = StudioRed.copy(alpha = 0.7f),
+                    color = StudioRed.copy(alpha = 0.6f),
                     start = Offset(0f, centerY),
                     end = Offset(size.width, centerY),
                     strokeWidth = 1.2f
                 )
-                // Y Axis
                 drawLine(
-                    color = StudioGreen.copy(alpha = 0.7f),
+                    color = StudioGreen.copy(alpha = 0.6f),
                     start = Offset(centerX, 0f),
                     end = Offset(centerX, size.height),
                     strokeWidth = 1.2f
                 )
 
-                // Origin Circle Marker
-                drawCircle(
-                    color = Color.White,
-                    radius = 3.dp.toPx(),
-                    center = Offset(centerX, centerY)
-                )
-                drawCircle(
-                    color = StudioPurple,
-                    radius = 1.5.dp.toPx(),
-                    center = Offset(centerX, centerY)
-                )
+                // Origin Marker
+                drawCircle(color = Color.White, radius = 3.dp.toPx(), center = Offset(centerX, centerY))
+                drawCircle(color = StudioPurple, radius = 1.5.dp.toPx(), center = Offset(centerX, centerY))
 
-                // E. Procedural Lighting 2D (Ambient Point Light Glow)
+                // E. Procedural Lighting 2D (Ambient Point Light)
                 if (showLighting) {
-                    val lightPos = Offset(centerX + 80.dp.toPx(), centerY - 45.dp.toPx())
+                    val lightPos = Offset(centerX + 75.dp.toPx() * zoomScale, centerY - 40.dp.toPx() * zoomScale)
                     drawCircle(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                StudioOrange.copy(alpha = 0.35f),
-                                StudioOrange.copy(alpha = 0.15f),
-                                StudioYellow.copy(alpha = 0.05f),
+                                StudioOrange.copy(alpha = 0.3f),
+                                StudioOrange.copy(alpha = 0.12f),
+                                StudioYellow.copy(alpha = 0.04f),
                                 Color.Transparent
                             ),
                             center = lightPos,
-                            radius = 90.dp.toPx()
+                            radius = 85.dp.toPx() * zoomScale
                         ),
-                        radius = 90.dp.toPx(),
+                        radius = 85.dp.toPx() * zoomScale,
                         center = lightPos
                     )
                 }
 
-                // F. Procedural Game Entities Render
-                // 1. Static Platforms (Tilemap Ground)
-                drawProceduralPlatform(
-                    topLeft = Offset(centerX - 140.dp.toPx(), centerY + 55.dp.toPx()),
-                    width = 280.dp.toPx(),
-                    height = 24.dp.toPx()
-                )
+                // F. Render All Scene Entities
+                allNodes.filter { it.isVisible }.forEach { node ->
+                    val nodePosX = centerX + node.posX * zoomScale
+                    val nodePosY = centerY + node.posY * zoomScale
+                    val nodeColor = parseHexColor(node.colorHex)
 
-                drawProceduralPlatform(
-                    topLeft = Offset(centerX - 110.dp.toPx(), centerY + 5.dp.toPx()),
-                    width = 80.dp.toPx(),
-                    height = 14.dp.toPx()
-                )
-
-                drawProceduralPlatform(
-                    topLeft = Offset(centerX + 30.dp.toPx(), centerY - 25.dp.toPx()),
-                    width = 90.dp.toPx(),
-                    height = 14.dp.toPx()
-                )
-
-                // 2. Enemy / Demon Patrol Token
-                val enemyX = centerX - 70.dp.toPx()
-                val enemyY = centerY + 36.dp.toPx()
-                // Aggro radius circle
-                drawCircle(
-                    color = StudioRed.copy(alpha = 0.12f),
-                    radius = 45.dp.toPx(),
-                    center = Offset(enemyX, enemyY)
-                )
-                drawCircle(
-                    color = StudioRed.copy(alpha = 0.4f),
-                    radius = 45.dp.toPx(),
-                    center = Offset(enemyX, enemyY),
-                    style = Stroke(width = 0.8f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 4f), 0f))
-                )
-                // Enemy Core
-                drawCircle(
-                    color = StudioRed,
-                    radius = 8.dp.toPx(),
-                    center = Offset(enemyX, enemyY)
-                )
-                drawCircle(
-                    color = Color.White,
-                    radius = 3.dp.toPx(),
-                    center = Offset(enemyX, enemyY)
-                )
-
-                // 3. Camera Frustum (2D View Cone)
-                val camX = centerX
-                val camY = centerY - 10.dp.toPx()
-                drawCircle(
-                    color = StudioBlue.copy(alpha = 0.8f),
-                    radius = 6.dp.toPx(),
-                    center = Offset(camX, camY)
-                )
+                    when (node.type) {
+                        NodeType.PLATFORM -> {
+                            val w = 70.dp.toPx() * node.scale * zoomScale
+                            val h = 16.dp.toPx() * node.scale * zoomScale
+                            drawProceduralPlatform(
+                                topLeft = Offset(nodePosX - w / 2f, nodePosY - h / 2f),
+                                width = w,
+                                height = h,
+                                color = nodeColor
+                            )
+                        }
+                        NodeType.ENEMY -> {
+                            val r = 9.dp.toPx() * node.scale * zoomScale
+                            drawCircle(color = nodeColor.copy(alpha = 0.2f), radius = r * 3f, center = Offset(nodePosX, nodePosY))
+                            drawCircle(color = nodeColor, radius = r, center = Offset(nodePosX, nodePosY))
+                            drawCircle(color = Color.White, radius = r * 0.35f, center = Offset(nodePosX, nodePosY))
+                        }
+                        NodeType.LIGHT -> {
+                            val r = 18.dp.toPx() * node.scale * zoomScale
+                            drawCircle(color = StudioOrange.copy(alpha = 0.5f), radius = r, center = Offset(nodePosX, nodePosY))
+                            drawCircle(color = StudioYellow, radius = r * 0.4f, center = Offset(nodePosX, nodePosY))
+                        }
+                        NodeType.PARTICLE_SYSTEM -> {
+                            val r = 12.dp.toPx() * node.scale * zoomScale
+                            drawCircle(color = StudioPink.copy(alpha = 0.6f), radius = r, center = Offset(nodePosX, nodePosY))
+                        }
+                        else -> {
+                            // Default Entity Token
+                            val r = 10.dp.toPx() * node.scale * zoomScale
+                            drawCircle(color = nodeColor, radius = r, center = Offset(nodePosX, nodePosY))
+                            drawCircle(color = Color.White, radius = r * 0.3f, center = Offset(nodePosX, nodePosY))
+                        }
+                    }
+                }
 
                 // G. Selected Object Transform Box & Gizmo
                 selectedNode?.let { node ->
-                    val objX = centerX + node.posX
-                    val objY = centerY + node.posY
-                    val boxW = 38.dp.toPx() * node.scale
-                    val boxH = 38.dp.toPx() * node.scale
+                    val objX = centerX + node.posX * zoomScale
+                    val objY = centerY + node.posY * zoomScale
+                    val boxW = 38.dp.toPx() * node.scale * zoomScale
+                    val boxH = 38.dp.toPx() * node.scale * zoomScale
 
                     // Transform Bounding Box
                     drawRoundRect(
@@ -456,7 +432,7 @@ fun StudioViewport(
 
                     // Move Gizmo Arrows (Red X Arrow & Green Y Arrow)
                     if (activeTool == 2 || activeTool == 1) {
-                        val arrowLen = 32.dp.toPx()
+                        val arrowLen = 30.dp.toPx()
                         // X Axis Arrow (Red)
                         drawLine(
                             color = StudioRed,
@@ -484,8 +460,8 @@ fun StudioViewport(
             // 4. Procedural Player Character Token
             // ========================================================
             selectedNode?.let { node ->
-                val objX = centerX + node.posX
-                val objY = centerY + node.posY
+                val objX = centerX + node.posX * zoomScale
+                val objY = centerY + node.posY * zoomScale
 
                 Box(
                     modifier = Modifier
@@ -546,7 +522,7 @@ fun StudioViewport(
                     .align(Alignment.TopStart)
                     .padding(6.dp)
                     .clip(RoundedCornerShape(6.dp))
-                    .background(EngineCardBg.copy(alpha = 0.92f))
+                    .background(EngineCardBg.copy(alpha = 0.94f))
                     .border(0.5.dp, StudioBorder, RoundedCornerShape(6.dp))
                     .padding(2.dp),
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
@@ -605,6 +581,24 @@ fun StudioViewport(
                     onClick = { showLighting = !showLighting },
                     testTag = "tool_lighting"
                 )
+
+                Box(modifier = Modifier.width(0.6.dp).height(12.dp).background(StudioBorder))
+
+                // Zoom In
+                ViewportToolButton(
+                    icon = Icons.Default.ZoomIn,
+                    isSelected = false,
+                    onClick = { zoomScale = (zoomScale + 0.15f).coerceAtMost(3.0f) },
+                    testTag = "tool_zoom_in"
+                )
+
+                // Zoom Out
+                ViewportToolButton(
+                    icon = Icons.Default.ZoomOut,
+                    isSelected = false,
+                    onClick = { zoomScale = (zoomScale - 0.15f).coerceAtLeast(0.4f) },
+                    testTag = "tool_zoom_out"
+                )
             }
 
             // ========================================================
@@ -646,7 +640,6 @@ fun StudioViewport(
             // ========================================================
             // 7. Floating Restore Buttons for Collapsed Panels
             // ========================================================
-            // Left Edge: Open Hierarchy Button
             if (!isHierarchyVisible) {
                 Box(
                     modifier = Modifier
@@ -678,7 +671,6 @@ fun StudioViewport(
                 }
             }
 
-            // Right Edge: Open Inspector Button
             if (!isInspectorVisible) {
                 Box(
                     modifier = Modifier
@@ -710,7 +702,6 @@ fun StudioViewport(
                 }
             }
 
-            // Bottom Edge: Open Timeline Button
             if (!isTimelineVisible) {
                 Box(
                     modifier = Modifier
@@ -748,32 +739,42 @@ fun StudioViewport(
 private fun DrawScope.drawProceduralPlatform(
     topLeft: Offset,
     width: Float,
-    height: Float
+    height: Float,
+    color: Color = StudioGreen
 ) {
-    // Platform Solid Base
     drawRoundRect(
-        color = Color(0xFF1E293B),
+        color = Color(0xFF1A1D2E),
         topLeft = topLeft,
         size = Size(width, height),
         cornerRadius = CornerRadius(2.dp.toPx())
     )
-
-    // Platform Top Neon Grass/Ledge Highlight
     drawLine(
-        color = StudioGreen,
+        color = color,
         start = Offset(topLeft.x, topLeft.y),
         end = Offset(topLeft.x + width, topLeft.y),
         strokeWidth = 2.dp.toPx()
     )
-
-    // Collision Box Outline
     drawRoundRect(
-        color = StudioGreen.copy(alpha = 0.4f),
+        color = color.copy(alpha = 0.4f),
         topLeft = topLeft,
         size = Size(width, height),
         cornerRadius = CornerRadius(2.dp.toPx()),
         style = Stroke(width = 0.8f)
     )
+}
+
+private fun parseHexColor(hex: String): Color {
+    return try {
+        val clean = hex.removePrefix("#")
+        val colorInt = clean.toLong(16)
+        if (clean.length == 6) {
+            Color((0xFF000000 or colorInt).toInt())
+        } else {
+            Color(colorInt.toInt())
+        }
+    } catch (e: Exception) {
+        StudioPurpleLight
+    }
 }
 
 @Composable

@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -47,14 +48,12 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.ui.theme.EngineBackground
-import com.example.ui.theme.EngineBorder
 import com.example.ui.theme.EngineCardBg
 import com.example.ui.theme.EngineSurface
-import com.example.ui.theme.EngineWhiteBorder
-import com.example.ui.theme.EngineWhiteGlass
-import com.example.ui.theme.EngineWhiteMuted
-import com.example.ui.theme.EngineWhitePrimary
-import com.example.ui.theme.EngineWhiteTranslucent
+import com.example.ui.theme.StudioBorder
+import com.example.ui.theme.StudioPurple
+import com.example.ui.theme.StudioPurpleDark
+import com.example.ui.theme.StudioPurpleLight
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
@@ -103,7 +102,7 @@ fun OpenProjectDialog(
                 .border(
                     width = 1.dp,
                     brush = Brush.verticalGradient(
-                        listOf(EngineWhiteBorder, EngineBorder)
+                        listOf(StudioPurpleLight.copy(alpha = 0.5f), StudioBorder)
                     ),
                     shape = RoundedCornerShape(16.dp)
                 ),
@@ -125,14 +124,14 @@ fun OpenProjectDialog(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(EngineWhiteGlass)
-                                .border(0.8.dp, EngineWhiteBorder, RoundedCornerShape(8.dp)),
+                                .background(StudioPurpleDark)
+                                .border(0.8.dp, StudioPurpleLight, RoundedCornerShape(8.dp)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.FolderOpen,
                                 contentDescription = null,
-                                tint = EngineWhitePrimary,
+                                tint = Color.White,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -192,13 +191,13 @@ fun OpenProjectDialog(
                             Icon(
                                 imageVector = Icons.Default.Folder,
                                 contentDescription = null,
-                                tint = EngineWhiteTranslucent,
+                                tint = StudioPurpleLight,
                                 modifier = Modifier.size(16.dp)
                             )
                         },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = EngineWhitePrimary,
-                            unfocusedBorderColor = EngineBorder,
+                            focusedBorderColor = StudioPurpleLight,
+                            unfocusedBorderColor = StudioBorder,
                             focusedContainerColor = EngineCardBg,
                             unfocusedContainerColor = EngineCardBg,
                             focusedTextColor = TextPrimary,
@@ -224,7 +223,7 @@ fun OpenProjectDialog(
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(8.dp))
                             .background(EngineCardBg)
-                            .border(0.8.dp, EngineBorder, RoundedCornerShape(8.dp))
+                            .border(0.8.dp, StudioBorder, RoundedCornerShape(8.dp))
                             .padding(6.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
@@ -245,7 +244,7 @@ fun OpenProjectDialog(
                                     Icon(
                                         imageVector = Icons.Default.Folder,
                                         contentDescription = null,
-                                        tint = EngineWhiteTranslucent,
+                                        tint = StudioPurpleLight,
                                         modifier = Modifier.size(15.dp)
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
@@ -294,7 +293,7 @@ fun OpenProjectDialog(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(EngineWhitePrimary)
+                            .background(StudioPurple)
                             .clickable {
                                 onProjectSelected(manualPathInput.ifBlank { initialPath })
                             }
@@ -306,14 +305,14 @@ fun OpenProjectDialog(
                                 imageVector = Icons.Default.FolderOpen,
                                 contentDescription = null,
                                 modifier = Modifier.size(14.dp),
-                                tint = EngineBackground
+                                tint = Color.White
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "فتح وتعديل المشروع",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = EngineBackground
+                                color = Color.White
                             )
                         }
                     }

@@ -29,8 +29,6 @@ import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Gamepad
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.ViewInAr
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -59,17 +57,14 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.ui.theme.EngineBackground
-import com.example.ui.theme.EngineBorder
 import com.example.ui.theme.EngineCardBg
 import com.example.ui.theme.EngineSurface
-import com.example.ui.theme.EngineSurfaceVariant
-import com.example.ui.theme.EngineWhiteBorder
-import com.example.ui.theme.EngineWhiteGlass
-import com.example.ui.theme.EngineWhiteMuted
-import com.example.ui.theme.EngineWhitePrimary
-import com.example.ui.theme.EngineWhiteSubtle
-import com.example.ui.theme.EngineWhiteTranslucent
-import com.example.ui.theme.KorvaRed
+import com.example.ui.theme.StudioBorder
+import com.example.ui.theme.StudioPurple
+import com.example.ui.theme.StudioPurpleDark
+import com.example.ui.theme.StudioPurpleGlass
+import com.example.ui.theme.StudioPurpleLight
+import com.example.ui.theme.StudioRed
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
@@ -100,19 +95,19 @@ fun NewProjectDialog(
                 title = "2D Game Engine",
                 description = "محرك ألعاب ثنائي الأبعاد مع دعم فيزياء وتصادمات",
                 icon = Icons.Default.Gamepad,
-                color = EngineWhitePrimary
+                color = StudioPurple
             ),
             ProjectTemplate(
                 title = "3D Scene Studio",
                 description = "مشهد ثلاثي الأبعاد مع إضاءة ديناميكية وكاميرا",
                 icon = Icons.Default.ViewInAr,
-                color = EngineWhiteTranslucent
+                color = StudioPurpleLight
             ),
             ProjectTemplate(
                 title = "Physics Sandbox",
                 description = "مختبر محاكاة الجاذبية والأجسام التفاعلية",
                 icon = Icons.Default.Science,
-                color = EngineWhiteMuted
+                color = StudioPurpleLight
             )
         )
     }
@@ -137,7 +132,7 @@ fun NewProjectDialog(
                 .border(
                     width = 1.dp,
                     brush = Brush.verticalGradient(
-                        listOf(EngineWhiteBorder, EngineBorder)
+                        listOf(StudioPurpleLight.copy(alpha = 0.5f), StudioBorder)
                     ),
                     shape = RoundedCornerShape(16.dp)
                 ),
@@ -148,7 +143,7 @@ fun NewProjectDialog(
                     .fillMaxWidth()
                     .padding(18.dp)
             ) {
-                // Header (Fixed at top)
+                // Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -159,14 +154,14 @@ fun NewProjectDialog(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(EngineWhiteGlass)
-                                .border(0.8.dp, EngineWhiteBorder, RoundedCornerShape(8.dp)),
+                                .background(StudioPurpleDark)
+                                .border(0.8.dp, StudioPurpleLight, RoundedCornerShape(8.dp)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.AutoFixHigh,
                                 contentDescription = null,
-                                tint = EngineWhitePrimary,
+                                tint = Color.White,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -240,7 +235,7 @@ fun NewProjectDialog(
                             if (errorMessage != null) {
                                 Text(
                                     text = errorMessage ?: "",
-                                    color = KorvaRed,
+                                    color = StudioRed,
                                     fontSize = 10.5.sp
                                 )
                             }
@@ -249,18 +244,18 @@ fun NewProjectDialog(
                             Icon(
                                 imageVector = Icons.Default.Edit,
                                 contentDescription = null,
-                                tint = EngineWhiteTranslucent,
+                                tint = StudioPurpleLight,
                                 modifier = Modifier.size(16.dp)
                             )
                         },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = EngineWhitePrimary,
-                            unfocusedBorderColor = EngineBorder,
+                            focusedBorderColor = StudioPurpleLight,
+                            unfocusedBorderColor = StudioBorder,
                             focusedContainerColor = EngineCardBg,
                             unfocusedContainerColor = EngineCardBg,
                             focusedTextColor = TextPrimary,
                             unfocusedTextColor = TextPrimary,
-                            cursorColor = EngineWhitePrimary
+                            cursorColor = StudioPurpleLight
                         ),
                         shape = RoundedCornerShape(8.dp),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
@@ -290,7 +285,7 @@ fun NewProjectDialog(
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(8.dp))
                             .background(EngineCardBg)
-                            .border(0.8.dp, EngineBorder, RoundedCornerShape(8.dp))
+                            .border(0.8.dp, StudioBorder, RoundedCornerShape(8.dp))
                             .padding(horizontal = 10.dp, vertical = 8.dp)
                     ) {
                         Row(
@@ -305,7 +300,7 @@ fun NewProjectDialog(
                                 Icon(
                                     imageVector = Icons.Default.Folder,
                                     contentDescription = null,
-                                    tint = EngineWhiteTranslucent,
+                                    tint = StudioPurpleLight,
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -321,12 +316,12 @@ fun NewProjectDialog(
 
                             Spacer(modifier = Modifier.width(6.dp))
 
-                            // Change Path Button (Translucent White)
+                            // Change Path Button
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(EngineWhiteGlass)
-                                    .border(0.8.dp, EngineWhiteBorder, RoundedCornerShape(6.dp))
+                                    .background(StudioPurpleDark)
+                                    .border(0.8.dp, StudioPurpleLight, RoundedCornerShape(6.dp))
                                     .clickable { onChangePathRequested() }
                                     .padding(horizontal = 8.dp, vertical = 5.dp)
                                     .testTag("change_path_button")
@@ -335,13 +330,13 @@ fun NewProjectDialog(
                                     Icon(
                                         imageVector = Icons.Default.FolderOpen,
                                         contentDescription = null,
-                                        tint = EngineWhitePrimary,
+                                        tint = Color.White,
                                         modifier = Modifier.size(13.dp)
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
                                         text = "تغيير المسار",
-                                        color = EngineWhitePrimary,
+                                        color = Color.White,
                                         fontSize = 10.5.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -372,10 +367,10 @@ fun NewProjectDialog(
                                 modifier = Modifier
                                     .weight(1f)
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(if (isSelected) EngineWhiteGlass else EngineCardBg)
+                                    .background(if (isSelected) StudioPurpleDark.copy(alpha = 0.5f) else EngineCardBg)
                                     .border(
                                         width = if (isSelected) 1.2.dp else 0.8.dp,
-                                        color = if (isSelected) EngineWhitePrimary else EngineBorder,
+                                        color = if (isSelected) StudioPurpleLight else StudioBorder,
                                         shape = RoundedCornerShape(8.dp)
                                     )
                                     .clickable { selectedTemplateIndex = index }
@@ -386,7 +381,7 @@ fun NewProjectDialog(
                                         Icon(
                                             imageVector = template.icon,
                                             contentDescription = null,
-                                            tint = if (isSelected) EngineWhitePrimary else TextMuted,
+                                            tint = if (isSelected) StudioPurpleLight else TextMuted,
                                             modifier = Modifier.size(15.dp)
                                         )
                                         Spacer(modifier = Modifier.width(5.dp))
@@ -435,11 +430,11 @@ fun NewProjectDialog(
 
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    // Translucent White Save Button
+                    // Create Button
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(EngineWhitePrimary)
+                            .background(StudioPurple)
                             .clickable {
                                 if (projectName.isBlank()) {
                                     errorMessage = "يرجى إدخال اسم المشروع"
@@ -459,14 +454,14 @@ fun NewProjectDialog(
                                 imageVector = Icons.Default.AutoFixHigh,
                                 contentDescription = null,
                                 modifier = Modifier.size(14.dp),
-                                tint = EngineBackground
+                                tint = Color.White
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "تثبيت وإنشاء المشروع",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = EngineBackground
+                                color = Color.White
                             )
                         }
                     }

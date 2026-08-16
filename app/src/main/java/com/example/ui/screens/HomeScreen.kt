@@ -55,15 +55,14 @@ import com.example.ui.components.KorvaLogo
 import com.example.ui.components.KorvaStatusBar
 import com.example.ui.components.ProjectCard
 import com.example.ui.theme.EngineBackground
-import com.example.ui.theme.EngineBorder
 import com.example.ui.theme.EngineCardBg
 import com.example.ui.theme.EngineSurface
-import com.example.ui.theme.EngineWhiteBorder
-import com.example.ui.theme.EngineWhiteGlass
-import com.example.ui.theme.EngineWhiteMuted
-import com.example.ui.theme.EngineWhitePrimary
-import com.example.ui.theme.EngineWhiteTranslucent
-import com.example.ui.theme.KorvaRed
+import com.example.ui.theme.StudioBorder
+import com.example.ui.theme.StudioPurple
+import com.example.ui.theme.StudioPurpleDark
+import com.example.ui.theme.StudioPurpleGlass
+import com.example.ui.theme.StudioPurpleLight
+import com.example.ui.theme.StudioRed
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
@@ -82,14 +81,14 @@ fun HomeScreen(
             .background(EngineBackground)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Main Landscape Split (1/3 Left Control + 2/3 Right Data)
+            // Main Landscape Split
             Row(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
             ) {
                 // ========================================================
-                // 1. الجانب الأيسر (التحكم الرئيسي والتمرير الديناميكي)
+                // 1. Left Control Panel
                 // ========================================================
                 Box(
                     modifier = Modifier
@@ -98,7 +97,7 @@ fun HomeScreen(
                         .background(EngineSurface)
                         .border(
                             width = 0.6.dp,
-                            color = EngineBorder
+                            color = StudioBorder
                         )
                         .padding(8.dp)
                 ) {
@@ -108,7 +107,7 @@ fun HomeScreen(
                             .verticalScroll(leftScrollState),
                         verticalArrangement = Arrangement.SpaceBetween
                     ) {
-                        // Top Section: App Logo + Explicit Exit Button
+                        // Top Section: App Logo + Exit Button
                         Column {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -117,13 +116,13 @@ fun HomeScreen(
                             ) {
                                 KorvaLogo(compact = true)
 
-                                // Explicit Exit Button (Frosted White & Red accent)
+                                // Exit Button
                                 Box(
                                     modifier = Modifier
                                         .size(24.dp)
                                         .clip(CircleShape)
                                         .background(EngineCardBg)
-                                        .border(0.6.dp, KorvaRed.copy(alpha = 0.4f), CircleShape)
+                                        .border(0.6.dp, StudioRed.copy(alpha = 0.4f), CircleShape)
                                         .clickable { viewModel.openExitConfirmDialog() }
                                         .testTag("explicit_exit_button"),
                                     contentAlignment = Alignment.Center
@@ -131,7 +130,7 @@ fun HomeScreen(
                                     Icon(
                                         imageVector = Icons.Default.PowerSettingsNew,
                                         contentDescription = "زر خروج صريح من التطبيق",
-                                        tint = KorvaRed.copy(alpha = 0.9f),
+                                        tint = StudioRed.copy(alpha = 0.9f),
                                         modifier = Modifier.size(13.dp)
                                     )
                                 }
@@ -139,14 +138,14 @@ fun HomeScreen(
 
                             Spacer(modifier = Modifier.height(8.dp))
 
-                            // Separator line with translucent white accent
+                            // Separator line
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(0.6.dp)
                                     .background(
                                         Brush.horizontalGradient(
-                                            listOf(EngineWhiteBorder, Color.Transparent)
+                                            listOf(StudioPurpleLight.copy(alpha = 0.3f), Color.Transparent)
                                         )
                                     )
                             )
@@ -154,22 +153,22 @@ fun HomeScreen(
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        // Middle Section: Primary and Secondary Action Buttons
+                        // Middle Section: Primary Action Buttons
                         Column(
                             modifier = Modifier.fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            // Primary Button: "مشروع جديد" (Translucent White frosted engine theme)
+                            // Primary Button: "مشروع جديد"
                             Button(
                                 onClick = { viewModel.openNewProjectDialog() },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(36.dp)
-                                    .shadow(4.dp, RoundedCornerShape(6.dp), spotColor = Color.Black)
+                                    .shadow(4.dp, RoundedCornerShape(6.dp), spotColor = StudioPurpleDark)
                                     .testTag("start_editing_button"),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = EngineWhitePrimary,
-                                    contentColor = EngineBackground
+                                    containerColor = StudioPurple,
+                                    contentColor = Color.White
                                 ),
                                 shape = RoundedCornerShape(6.dp)
                             ) {
@@ -182,28 +181,27 @@ fun HomeScreen(
                                         modifier = Modifier
                                             .size(18.dp)
                                             .clip(CircleShape)
-                                            .background(EngineBackground.copy(alpha = 0.12f)),
+                                            .background(StudioPurpleDark),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Add,
                                             contentDescription = null,
-                                            tint = EngineBackground,
+                                            tint = Color.White,
                                             modifier = Modifier.size(13.dp)
                                         )
                                     }
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Column {
-                                        Text(
-                                            text = "مشروع جديد (Start Editing)",
-                                            fontSize = 9.5.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
+                                    Text(
+                                        text = "مشروع جديد (Start Editing)",
+                                        fontSize = 9.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
                                 }
                             }
 
-                            // Secondary Button: "تحرير مشروع محفوظ" (Translucent Frosted Glass)
+                            // Secondary Button: "تحرير مشروع محفوظ"
                             OutlinedButton(
                                 onClick = { viewModel.openOpenProjectDialog() },
                                 modifier = Modifier
@@ -216,7 +214,7 @@ fun HomeScreen(
                                 ),
                                 border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(
                                     brush = Brush.horizontalGradient(
-                                        listOf(EngineWhiteBorder, EngineBorder)
+                                        listOf(StudioPurpleLight.copy(alpha = 0.5f), StudioBorder)
                                     ),
                                     width = 0.6.dp
                                 ),
@@ -230,7 +228,7 @@ fun HomeScreen(
                                     Icon(
                                         imageVector = Icons.Default.FolderOpen,
                                         contentDescription = null,
-                                        tint = EngineWhiteTranslucent,
+                                        tint = StudioPurpleLight,
                                         modifier = Modifier.size(14.dp)
                                     )
                                     Spacer(modifier = Modifier.width(5.dp))
@@ -246,13 +244,13 @@ fun HomeScreen(
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        // Bottom telemetry info inside left panel
+                        // Bottom info inside left panel
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(5.dp))
                                 .background(EngineCardBg)
-                                .border(0.5.dp, EngineBorder, RoundedCornerShape(5.dp))
+                                .border(0.5.dp, StudioBorder, RoundedCornerShape(5.dp))
                                 .padding(5.dp)
                         ) {
                             Row(
@@ -276,7 +274,7 @@ fun HomeScreen(
                                 Icon(
                                     imageVector = Icons.Default.AutoAwesome,
                                     contentDescription = null,
-                                    tint = EngineWhiteMuted,
+                                    tint = StudioPurpleLight,
                                     modifier = Modifier.size(12.dp)
                                 )
                             }
@@ -285,7 +283,7 @@ fun HomeScreen(
                 }
 
                 // ========================================================
-                // 2. الجانب الأيمن (إدارة البيانات والتمرير)
+                // 2. Right Data & Projects Panel
                 // ========================================================
                 Column(
                     modifier = Modifier
@@ -293,7 +291,7 @@ fun HomeScreen(
                         .fillMaxHeight()
                         .padding(8.dp)
                 ) {
-                    // Header of Data Management
+                    // Header of Projects List
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -310,20 +308,20 @@ fun HomeScreen(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(EngineWhiteGlass)
-                                    .border(0.5.dp, EngineWhiteBorder, RoundedCornerShape(6.dp))
+                                    .background(StudioPurpleGlass)
+                                    .border(0.5.dp, StudioPurpleLight.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
                                     .padding(horizontal = 5.dp, vertical = 1.dp)
                             ) {
                                 Text(
                                     text = "${uiState.filteredProjects.size} مشروع",
-                                    color = EngineWhitePrimary,
+                                    color = StudioPurpleLight,
                                     fontSize = 8.5.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
                         }
 
-                        // Search Filter input (Compact)
+                        // Search Filter input
                         OutlinedTextField(
                             value = uiState.searchQuery,
                             onValueChange = { viewModel.setSearchQuery(it) },
@@ -357,8 +355,8 @@ fun HomeScreen(
                                 }
                             },
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = EngineWhitePrimary,
-                                unfocusedBorderColor = EngineBorder,
+                                focusedBorderColor = StudioPurpleLight,
+                                unfocusedBorderColor = StudioBorder,
                                 focusedContainerColor = EngineCardBg,
                                 unfocusedContainerColor = EngineCardBg,
                                 focusedTextColor = TextPrimary,
@@ -378,7 +376,7 @@ fun HomeScreen(
                                 .weight(1f)
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(EngineSurface.copy(alpha = 0.6f))
-                                .border(0.6.dp, EngineBorder, RoundedCornerShape(8.dp))
+                                .border(0.6.dp, StudioBorder, RoundedCornerShape(8.dp))
                                 .padding(12.dp)
                                 .testTag("empty_projects_state"),
                             contentAlignment = Alignment.Center
@@ -392,13 +390,13 @@ fun HomeScreen(
                                         .size(36.dp)
                                         .clip(CircleShape)
                                         .background(EngineCardBg)
-                                        .border(0.6.dp, EngineWhiteBorder, CircleShape),
+                                        .border(0.6.dp, StudioPurpleLight.copy(alpha = 0.4f), CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.LayersClear,
                                         contentDescription = null,
-                                        tint = EngineWhiteTranslucent,
+                                        tint = StudioPurpleLight,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
@@ -428,16 +426,15 @@ fun HomeScreen(
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(6.dp))
-                                        .background(EngineWhiteGlass)
-                                        .border(0.6.dp, EngineWhiteBorder, RoundedCornerShape(6.dp))
+                                        .background(StudioPurple)
                                         .clickable { viewModel.openNewProjectDialog() }
                                         .padding(horizontal = 10.dp, vertical = 4.dp)
                                         .testTag("empty_state_create_button")
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(11.dp), tint = EngineWhitePrimary)
+                                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(11.dp), tint = Color.White)
                                         Spacer(modifier = Modifier.width(4.dp))
-                                        Text("إنشاء أول مشروع", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = EngineWhitePrimary)
+                                        Text("إنشاء أول مشروع", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.White)
                                     }
                                 }
                             }
@@ -466,7 +463,7 @@ fun HomeScreen(
             }
 
             // ========================================================
-            // 3. شريط الحالة السفلي (Status Bar)
+            // 3. Status Bar
             // ========================================================
             KorvaStatusBar(
                 defaultPath = uiState.defaultSavePath,

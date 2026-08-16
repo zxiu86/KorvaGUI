@@ -44,6 +44,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.model.ProjectEntity
 import com.example.ui.theme.EngineCardBg
 import com.example.ui.theme.EngineSurface
 import com.example.ui.theme.StudioBorder
@@ -66,6 +67,7 @@ fun StudioHeader(
     isInspectorVisible: Boolean,
     isTimelineVisible: Boolean,
     isFullscreen: Boolean,
+    availableProjects: List<ProjectEntity> = emptyList(),
     onToggleHierarchy: () -> Unit,
     onToggleInspector: () -> Unit,
     onToggleTimeline: () -> Unit,
@@ -95,7 +97,7 @@ fun StudioHeader(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            // Engine Logo Icon (Compact)
+            // Engine Logo Icon
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -188,32 +190,32 @@ fun StudioHeader(
                     expanded = showProjectDropdown,
                     onDismissRequest = { showProjectDropdown = false }
                 ) {
-                    DropdownMenuItem(
-                        text = { Text("Dark Village (2D Project)", fontSize = 10.sp) },
-                        onClick = {
-                            onProjectSwitch("Dark Village")
-                            showProjectDropdown = false
+                    if (availableProjects.isNotEmpty()) {
+                        availableProjects.forEach { proj ->
+                            DropdownMenuItem(
+                                text = { Text("${proj.name} (${proj.templateType})", fontSize = 10.sp) },
+                                onClick = {
+                                    onProjectSwitch(proj.name)
+                                    showProjectDropdown = false
+                                }
+                            )
                         }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Cyber Dungeon (2D ARPG)", fontSize = 10.sp) },
-                        onClick = {
-                            onProjectSwitch("Cyber Dungeon")
-                            showProjectDropdown = false
+                    } else {
+                        listOf("Dark Village", "Cyber Dungeon", "Pixel Platformer").forEach { name ->
+                            DropdownMenuItem(
+                                text = { Text(name, fontSize = 10.sp) },
+                                onClick = {
+                                    onProjectSwitch(name)
+                                    showProjectDropdown = false
+                                }
+                            )
                         }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Pixel Platformer (Physics)", fontSize = 10.sp) },
-                        onClick = {
-                            onProjectSwitch("Pixel Platformer")
-                            showProjectDropdown = false
-                        }
-                    )
+                    }
                 }
             }
         }
 
-        // Center Section: Compact Transport Controls (Play, Pause, Stop) + View Layout Toggles
+        // Center Section: Transport Controls (Play, Pause, Stop) + View Layout Toggles
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -306,7 +308,7 @@ fun StudioHeader(
                 }
             }
 
-            // Panel Visibility Dock Toggles (Modern UX for Quick Toggle)
+            // Panel Visibility Dock Toggles
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
@@ -370,7 +372,7 @@ fun StudioHeader(
                     )
                 }
 
-                // Toggle Fullscreen / Zen Viewport
+                // Toggle Fullscreen
                 Box(
                     modifier = Modifier
                         .size(20.dp)

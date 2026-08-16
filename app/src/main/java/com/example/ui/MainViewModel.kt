@@ -386,6 +386,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun setSelectedNodeExactPos(x: Float, y: Float) {
+        val currentId = _selectedNodeId.value ?: return
+        _sceneNodes.update { list ->
+            list.map { node ->
+                if (node.id == currentId) {
+                    node.copy(posX = x, posY = y)
+                } else node
+            }
+        }
+    }
+
     fun updateSelectedNodeScale(scaleMultiplier: Float) {
         val currentId = _selectedNodeId.value ?: return
         _sceneNodes.update { list ->
@@ -398,6 +409,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun setSelectedNodeExactScale(scale: Float) {
+        val currentId = _selectedNodeId.value ?: return
+        _sceneNodes.update { list ->
+            list.map { node ->
+                if (node.id == currentId) {
+                    node.copy(scale = scale.coerceIn(0.2f, 8.0f))
+                } else node
+            }
+        }
+    }
+
     fun updateSelectedNodeRotation(dAngle: Float) {
         val currentId = _selectedNodeId.value ?: return
         _sceneNodes.update { list ->
@@ -405,6 +427,65 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (node.id == currentId) {
                     node.copy(rotation = (node.rotation + dAngle) % 360f)
                 } else node
+            }
+        }
+    }
+
+    fun setSelectedNodeExactRotation(angle: Float) {
+        val currentId = _selectedNodeId.value ?: return
+        _sceneNodes.update { list ->
+            list.map { node ->
+                if (node.id == currentId) {
+                    node.copy(rotation = angle % 360f)
+                } else node
+            }
+        }
+    }
+
+    fun setSelectedNodeColor(colorHex: String) {
+        val currentId = _selectedNodeId.value ?: return
+        _sceneNodes.update { list ->
+            list.map { node ->
+                if (node.id == currentId) {
+                    node.copy(colorHex = colorHex)
+                } else node
+            }
+        }
+    }
+
+    fun setSelectedNodePhysics(enabled: Boolean, mass: Float = 1.0f) {
+        val currentId = _selectedNodeId.value ?: return
+        _sceneNodes.update { list ->
+            list.map { node ->
+                if (node.id == currentId) {
+                    node.copy(hasPhysics = enabled, mass = mass)
+                } else node
+            }
+        }
+    }
+
+    fun setSelectedNodeName(name: String) {
+        val currentId = _selectedNodeId.value ?: return
+        _sceneNodes.update { list ->
+            list.map { node ->
+                if (node.id == currentId) {
+                    node.copy(name = name)
+                } else node
+            }
+        }
+    }
+
+    fun switchActiveProject(project: ProjectEntity) {
+        openProjectInEditor(project)
+    }
+
+    fun switchActiveProjectByName(name: String) {
+        val target = uiState.value.projects.find { it.name.equals(name, ignoreCase = true) }
+        if (target != null) {
+            openProjectInEditor(target)
+        } else {
+            _activeProject.value?.let { current ->
+                _activeProject.value = current.copy(name = name)
             }
         }
     }
