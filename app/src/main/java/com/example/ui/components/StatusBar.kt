@@ -31,14 +31,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.EngineBorder
-import com.example.ui.theme.EngineWhiteBorder
 import com.example.ui.theme.EngineWhiteMuted
 import com.example.ui.theme.EngineWhitePrimary
 import com.example.ui.theme.EngineWhiteTranslucent
 import com.example.ui.theme.StatusBarBg
 import com.example.ui.theme.StatusGreen
 import com.example.ui.theme.TextMuted
-import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 
 @Composable
@@ -50,13 +48,13 @@ fun KorvaStatusBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(28.dp)
+            .height(20.dp)
             .background(StatusBarBg)
             .border(
-                width = 0.6.dp,
+                width = 0.5.dp,
                 color = EngineBorder.copy(alpha = 0.5f)
             )
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -65,29 +63,29 @@ fun KorvaStatusBar(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .weight(1f, fill = false)
-                .clip(RoundedCornerShape(4.dp))
+                .clip(RoundedCornerShape(3.dp))
                 .clickable { onChangePathClick() }
-                .padding(horizontal = 4.dp, vertical = 2.dp)
+                .padding(horizontal = 3.dp, vertical = 1.dp)
                 .testTag("status_bar_path_button")
         ) {
             Icon(
                 imageVector = Icons.Default.Folder,
                 contentDescription = null,
                 tint = EngineWhiteTranslucent,
-                modifier = Modifier.size(13.dp)
+                modifier = Modifier.size(10.dp)
             )
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(3.dp))
             Text(
-                text = "مسار الحفظ الافتراضي:",
+                text = "مسار الحفظ:",
                 color = TextSecondary,
-                fontSize = 10.sp,
+                fontSize = 7.5.sp,
                 fontWeight = FontWeight.Medium
             )
-            Spacer(modifier = Modifier.width(4.dp))
+            Spacer(modifier = Modifier.width(3.dp))
             Text(
                 text = defaultPath.ifBlank { "/storage/emulated/0/KorvaEngine/Projects" },
                 color = EngineWhitePrimary,
-                fontSize = 10.sp,
+                fontSize = 7.5.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
@@ -98,21 +96,21 @@ fun KorvaStatusBar(
         // Left side in RTL: Engine stability & telemetry
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             // Engine Core Status
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
-                        .size(5.dp)
+                        .size(4.dp)
                         .clip(CircleShape)
                         .background(StatusGreen)
                 )
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(3.dp))
                 Text(
                     text = "النواة: جاهزة",
                     color = StatusGreen,
-                    fontSize = 9.5.sp,
+                    fontSize = 7.5.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -123,13 +121,13 @@ fun KorvaStatusBar(
                     imageVector = Icons.Default.Speed,
                     contentDescription = null,
                     tint = EngineWhiteMuted,
-                    modifier = Modifier.size(11.dp)
+                    modifier = Modifier.size(9.dp)
                 )
-                Spacer(modifier = Modifier.width(3.dp))
+                Spacer(modifier = Modifier.width(2.dp))
                 Text(
                     text = "Vulkan / GLES 3.2",
                     color = TextMuted,
-                    fontSize = 9.5.sp,
+                    fontSize = 7.5.sp,
                     fontFamily = FontFamily.Monospace
                 )
             }
@@ -140,13 +138,13 @@ fun KorvaStatusBar(
                     imageVector = Icons.Default.Memory,
                     contentDescription = null,
                     tint = TextMuted,
-                    modifier = Modifier.size(11.dp)
+                    modifier = Modifier.size(9.dp)
                 )
-                Spacer(modifier = Modifier.width(3.dp))
+                Spacer(modifier = Modifier.width(2.dp))
                 Text(
                     text = "RAM: 48 MB",
                     color = TextMuted,
-                    fontSize = 9.5.sp,
+                    fontSize = 7.5.sp,
                     fontFamily = FontFamily.Monospace
                 )
             }

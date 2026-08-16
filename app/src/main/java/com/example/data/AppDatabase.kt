@@ -25,18 +25,7 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "korva_engine.db"
-                ).addCallback(object : Callback() {
-                    override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
-                        super.onCreate(db)
-                        val now = System.currentTimeMillis()
-                        db.execSQL(
-                            """
-                            INSERT INTO projects (name, path, templateType, lastModified, fileSize, version, description, colorHex, scenesCount, scriptsCount)
-                            VALUES ('Dark Village', '/KorvaProjects/Dark Village', '2D Project', $now, '12.4 MB', 'v1.0.0', 'مشروع لعبة 2D بأسلوب Pixel Art مع قرية مظلمة وتحكم كامل بالشخصية', '#8B5CF6', 3, 6)
-                            """.trimIndent()
-                        )
-                    }
-                }).fallbackToDestructiveMigration().build()
+                ).fallbackToDestructiveMigration().build()
                 INSTANCE = instance
                 instance
             }

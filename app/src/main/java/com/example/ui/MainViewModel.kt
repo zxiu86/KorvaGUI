@@ -75,6 +75,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val defaultPath = repository.getDefaultProjectsDirectory()
         _defaultSavePath.value = defaultPath
 
+        viewModelScope.launch {
+            repository.ensureDefaultProjects()
+        }
+
         val projectsFlow = repository.allProjects
 
         uiState = combine(

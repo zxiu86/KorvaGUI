@@ -84,47 +84,47 @@ fun StudioViewport(
             .background(EngineBackground)
     ) {
         // ========================================================
-        // 1. Top Ruler
+        // 1. Top Ruler (Compact: 11dp)
         // ========================================================
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(18.dp)
+                .height(11.dp)
                 .background(EngineCardBg)
-                .border(0.5.dp, StudioBorder)
-                .padding(start = 24.dp),
+                .border(0.4.dp, StudioBorder)
+                .padding(start = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            listOf("-640", "-512", "-384", "-256", "-128", "0", "128", "256", "384", "512", "640", "768", "896").forEach { mark ->
+            listOf("-512", "-256", "-128", "0", "128", "256", "512", "768").forEach { mark ->
                 Text(
                     text = mark,
                     color = TextMuted,
-                    fontSize = 8.sp,
+                    fontSize = 6.5.sp,
                     fontFamily = FontFamily.Monospace
                 )
             }
         }
 
         // ========================================================
-        // 2. Left Ruler
+        // 2. Left Ruler (Compact: 14dp)
         // ========================================================
         Column(
             modifier = Modifier
-                .padding(top = 18.dp)
-                .width(22.dp)
+                .padding(top = 11.dp)
+                .width(14.dp)
                 .fillMaxHeight()
                 .background(EngineCardBg)
-                .border(0.5.dp, StudioBorder)
-                .padding(vertical = 4.dp),
+                .border(0.4.dp, StudioBorder)
+                .padding(vertical = 2.dp),
             verticalArrangement = Arrangement.SpaceBetween,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            listOf("-384", "-256", "-128", "0", "128", "256", "384", "512").forEach { mark ->
+            listOf("-256", "-128", "0", "128", "256", "384").forEach { mark ->
                 Text(
                     text = mark,
                     color = TextMuted,
-                    fontSize = 7.5.sp,
+                    fontSize = 6.sp,
                     fontFamily = FontFamily.Monospace
                 )
             }
@@ -135,7 +135,7 @@ fun StudioViewport(
         // ========================================================
         BoxWithConstraints(
             modifier = Modifier
-                .padding(start = 22.dp, top = 18.dp)
+                .padding(start = 14.dp, top = 11.dp)
                 .fillMaxSize()
         ) {
             val canvasW = constraints.maxWidth.toFloat()
@@ -161,90 +161,131 @@ fun StudioViewport(
                             onNodeDrag(dragAmount.x, dragAmount.y)
                         }
                     }
-                    .testTag("viewport_interactive_canvas")
             ) {
-                // Purple Camera Frame
-                val frameW = canvasW * 0.45f
-                val frameH = canvasH * 0.55f
-                val frameLeft = centerX - frameW / 2f
-                val frameTop = centerY - frameH / 2f
+                // Subtle Grid
+                val gridSize = 24.dp.toPx()
+                var gx = 0f
+                while (gx < size.width) {
+                    drawLine(
+                        color = Color(0x15FFFFFF),
+                        start = Offset(gx, 0f),
+                        end = Offset(gx, size.height),
+                        strokeWidth = 0.5f
+                    )
+                    gx += gridSize
+                }
+                var gy = 0f
+                while (gy < size.height) {
+                    drawLine(
+                        color = Color(0x15FFFFFF),
+                        start = Offset(0f, gy),
+                        end = Offset(size.width, gy),
+                        strokeWidth = 0.5f
+                    )
+                    gy += gridSize
+                }
 
-                drawRect(
-                    color = StudioPurple.copy(alpha = 0.55f),
-                    topLeft = Offset(frameLeft, frameTop),
-                    size = Size(frameW, frameH),
-                    style = Stroke(width = 1.2f)
+                // Origin crosshair (0,0)
+                drawLine(
+                    color = StudioPurpleLight.copy(alpha = 0.4f),
+                    start = Offset(centerX - 15f, centerY),
+                    end = Offset(centerX + 15f, centerY),
+                    strokeWidth = 1f
+                )
+                drawLine(
+                    color = StudioPurpleLight.copy(alpha = 0.4f),
+                    start = Offset(centerX, centerY - 15f),
+                    end = Offset(centerX, centerY + 15f),
+                    strokeWidth = 1f
                 )
 
-                // Selected Object Gizmo
+                // Selected Object Transform Box & Gizmo
                 selectedNode?.let { node ->
                     val objX = centerX + node.posX
                     val objY = centerY + node.posY
-                    val boxSize = 36f * node.scale
+                    val boxW = 40.dp.toPx() * node.scale
+                    val boxH = 40.dp.toPx() * node.scale
 
                     // Bounding Box
                     drawRect(
                         color = StudioPurpleLight,
-                        topLeft = Offset(objX - boxSize / 2f, objY - boxSize / 2f),
-                        size = Size(boxSize, boxSize),
-                        style = Stroke(width = 1.2f)
+                        topLeft = Offset(objX - boxW / 2, objY - boxH / 2),
+                        size = Size(boxW, boxH),
+                        style = Stroke(
+                            width = 1.2f,
+                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(5f, 3f), 0f)
+                        )
                     )
 
-                    // 4 Anchor Points
-                    val cornerRadius = 3f
-                    drawCircle(color = StudioBlue, radius = cornerRadius, center = Offset(objX - boxSize / 2f, objY - boxSize / 2f))
-                    drawCircle(color = StudioBlue, radius = cornerRadius, center = Offset(objX + boxSize / 2f, objY - boxSize / 2f))
-                    drawCircle(color = StudioBlue, radius = cornerRadius, center = Offset(objX - boxSize / 2f, objY + boxSize / 2f))
-                    drawCircle(color = StudioBlue, radius = cornerRadius, center = Offset(objX + boxSize / 2f, objY + boxSize / 2f))
-
-                    // Green Up Arrow (Y-Axis Gizmo)
-                    val arrowYLen = 42f
-                    drawLine(
-                        color = StudioGreen,
-                        start = Offset(objX, objY - boxSize / 2f),
-                        end = Offset(objX, objY - boxSize / 2f - arrowYLen),
-                        strokeWidth = 2f
-                    )
-                    // Green Arrowhead
-                    val pathY = Path().apply {
-                        moveTo(objX, objY - boxSize / 2f - arrowYLen - 6f)
-                        lineTo(objX - 4f, objY - boxSize / 2f - arrowYLen)
-                        lineTo(objX + 4f, objY - boxSize / 2f - arrowYLen)
-                        close()
-                    }
-                    drawPath(pathY, color = StudioGreen)
-
-                    // Red Right Arrow (X-Axis Gizmo)
-                    val arrowXLen = 42f
+                    // Gizmo X Axis (Red)
+                    val arrowLen = 32.dp.toPx()
                     drawLine(
                         color = StudioRed,
-                        start = Offset(objX + boxSize / 2f, objY),
-                        end = Offset(objX + boxSize / 2f + arrowXLen, objY),
+                        start = Offset(objX, objY),
+                        end = Offset(objX + arrowLen, objY),
                         strokeWidth = 2f
                     )
-                    // Red Arrowhead
-                    val pathX = Path().apply {
-                        moveTo(objX + boxSize / 2f + arrowXLen + 6f, objY)
-                        lineTo(objX + boxSize / 2f + arrowXLen, objY - 4f)
-                        lineTo(objX + boxSize / 2f + arrowXLen, objY + 4f)
-                        close()
-                    }
-                    drawPath(pathX, color = StudioRed)
+                    drawPath(
+                        path = Path().apply {
+                            moveTo(objX + arrowLen + 6f, objY)
+                            lineTo(objX + arrowLen - 2f, objY - 4f)
+                            lineTo(objX + arrowLen - 2f, objY + 4f)
+                            close()
+                        },
+                        color = StudioRed
+                    )
+
+                    // Gizmo Y Axis (Green)
+                    drawLine(
+                        color = StudioGreen,
+                        start = Offset(objX, objY),
+                        end = Offset(objX, objY - arrowLen),
+                        strokeWidth = 2f
+                    )
+                    drawPath(
+                        path = Path().apply {
+                            moveTo(objX, objY - arrowLen - 6f)
+                            lineTo(objX - 4f, objY - arrowLen + 2f)
+                            lineTo(objX + 4f, objY - arrowLen + 2f)
+                            close()
+                        },
+                        color = StudioGreen
+                    )
+
+                    // Center Pivot Dot
+                    drawCircle(
+                        color = Color.White,
+                        radius = 2.5f,
+                        center = Offset(objX, objY)
+                    )
                 }
+
+                // Camera Frame (Dashed Blue Rect)
+                val camW = size.width * 0.72f
+                val camH = size.height * 0.65f
+                drawRect(
+                    color = StudioBlue.copy(alpha = 0.5f),
+                    topLeft = Offset((size.width - camW) / 2f, (size.height - camH) / 2f),
+                    size = Size(camW, camH),
+                    style = Stroke(
+                        width = 1f,
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 4f), 0f)
+                    )
+                )
             }
 
-            // Player character sprite overlay over gizmo
+            // Player Sprite (Placed directly at selected node position)
             selectedNode?.let { node ->
                 val objX = centerX + node.posX
                 val objY = centerY + node.posY
-                val spritePx = (32 * node.scale).dp
+                val spritePx = (24 * node.scale).dp
 
                 Box(
                     modifier = Modifier
                         .offset {
                             IntOffset(
-                                (objX - (16 * node.scale)).toInt(),
-                                (objY - (16 * node.scale)).toInt()
+                                (objX - (12 * node.scale)).toInt(),
+                                (objY - (12 * node.scale)).toInt()
                             )
                         }
                         .size(spritePx)
@@ -259,17 +300,17 @@ fun StudioViewport(
             }
 
             // ========================================================
-            // 4. Floating Left Tools Palette (Pan, Select, Move, Rotate, Scale, Snap, Undo)
+            // 4. Floating Left Tools Palette (Compact: 18dp icons)
             // ========================================================
             Column(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
-                    .padding(start = 10.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(EngineCardBg.copy(alpha = 0.92f))
-                    .border(0.8.dp, StudioBorder, RoundedCornerShape(8.dp))
-                    .padding(4.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                    .padding(start = 4.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(EngineCardBg.copy(alpha = 0.94f))
+                    .border(0.5.dp, StudioBorder, RoundedCornerShape(4.dp))
+                    .padding(2.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 listOf(
                     Icons.Default.PanTool to "Pan",
@@ -283,8 +324,8 @@ fun StudioViewport(
                     val isSelected = activeTool == idx
                     Box(
                         modifier = Modifier
-                            .size(26.dp)
-                            .clip(RoundedCornerShape(6.dp))
+                            .size(18.dp)
+                            .clip(RoundedCornerShape(3.dp))
                             .background(
                                 if (isSelected) StudioPurple else Color.Transparent
                             )
@@ -295,49 +336,49 @@ fun StudioViewport(
                             imageVector = icon,
                             contentDescription = desc,
                             tint = if (isSelected) Color.White else TextMuted,
-                            modifier = Modifier.size(14.dp)
+                            modifier = Modifier.size(10.dp)
                         )
                     }
                 }
             }
 
             // ========================================================
-            // 5. Viewport Bottom-Right Overlay Controls (Focus, Grid, Lock, Fullscreen)
+            // 5. Viewport Bottom-Right Overlay Controls (Compact)
             // ========================================================
             Row(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(10.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(EngineCardBg.copy(alpha = 0.92f))
-                    .border(0.8.dp, StudioBorder, RoundedCornerShape(6.dp))
-                    .padding(horizontal = 6.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    .padding(4.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(EngineCardBg.copy(alpha = 0.94f))
+                    .border(0.5.dp, StudioBorder, RoundedCornerShape(3.dp))
+                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
                     imageVector = Icons.Default.SelectAll,
                     contentDescription = "Focus",
                     tint = TextMuted,
-                    modifier = Modifier.size(13.dp)
+                    modifier = Modifier.size(10.dp)
                 )
                 Icon(
                     imageVector = Icons.Default.CropFree,
                     contentDescription = "Frame",
                     tint = TextMuted,
-                    modifier = Modifier.size(13.dp)
+                    modifier = Modifier.size(10.dp)
                 )
                 Icon(
                     imageVector = Icons.Default.Lock,
                     contentDescription = "Lock",
                     tint = TextMuted,
-                    modifier = Modifier.size(13.dp)
+                    modifier = Modifier.size(10.dp)
                 )
                 Icon(
                     imageVector = Icons.Default.Fullscreen,
                     contentDescription = "Fullscreen",
                     tint = TextMuted,
-                    modifier = Modifier.size(14.dp)
+                    modifier = Modifier.size(10.dp)
                 )
             }
         }

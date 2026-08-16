@@ -22,15 +22,10 @@ import androidx.compose.material.icons.filled.ViewInAr
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -38,12 +33,8 @@ import androidx.compose.ui.unit.sp
 import com.example.ui.theme.EngineSurface
 import com.example.ui.theme.StudioBorder
 import com.example.ui.theme.StudioPurple
-import com.example.ui.theme.StudioPurpleDark
-import com.example.ui.theme.StudioPurpleGlass
 import com.example.ui.theme.StudioPurpleLight
 import com.example.ui.theme.TextMuted
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
 
 enum class StudioGlobalTab {
     PROJECTS,
@@ -62,10 +53,10 @@ fun StudioBottomNav(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(34.dp)
+            .height(22.dp)
             .background(EngineSurface)
-            .border(width = 0.8.dp, color = StudioBorder)
-            .padding(horizontal = 14.dp),
+            .border(width = 0.5.dp, color = StudioBorder)
+            .padding(horizontal = 6.dp),
         horizontalArrangement = Arrangement.Start,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -80,17 +71,17 @@ fun StudioBottomNav(
 
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
+                    .clip(RoundedCornerShape(3.dp))
                     .background(
-                        if (isSelected) StudioPurple.copy(alpha = 0.28f) else Color.Transparent
+                        if (isSelected) StudioPurple.copy(alpha = 0.35f) else Color.Transparent
                     )
                     .border(
-                        width = if (isSelected) 0.8.dp else 0.dp,
+                        width = if (isSelected) 0.5.dp else 0.dp,
                         color = if (isSelected) StudioPurpleLight else Color.Transparent,
-                        shape = RoundedCornerShape(6.dp)
+                        shape = RoundedCornerShape(3.dp)
                     )
                     .clickable { onTabSelected(tab) }
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
                     .testTag("studio_tab_${tab.name.lowercase()}"),
                 contentAlignment = Alignment.Center
             ) {
@@ -99,19 +90,19 @@ fun StudioBottomNav(
                         imageVector = icon,
                         contentDescription = label,
                         tint = if (isSelected) Color.White else TextMuted,
-                        modifier = Modifier.size(13.dp)
+                        modifier = Modifier.size(10.dp)
                     )
-                    Spacer(modifier = Modifier.width(5.dp))
+                    Spacer(modifier = Modifier.width(3.dp))
                     Text(
                         text = label,
                         color = if (isSelected) Color.White else TextMuted,
-                        fontSize = 10.sp,
+                        fontSize = 8.sp,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(4.dp))
         }
     }
 }

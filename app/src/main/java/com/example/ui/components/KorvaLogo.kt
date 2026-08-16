@@ -33,9 +33,7 @@ import com.example.ui.theme.EngineSurfaceVariant
 import com.example.ui.theme.EngineWhiteBorder
 import com.example.ui.theme.EngineWhiteGlass
 import com.example.ui.theme.EngineWhiteMuted
-import com.example.ui.theme.EngineWhitePrimary
 import com.example.ui.theme.EngineWhiteTranslucent
-import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 
@@ -48,23 +46,23 @@ fun KorvaLogo(
         modifier = modifier.testTag("app_logo_header"),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Logo Container with frosted glass border
+        // Compact Logo Container
         Box(
             modifier = Modifier
-                .size(if (compact) 40.dp else 48.dp)
-                .shadow(elevation = 8.dp, shape = RoundedCornerShape(12.dp), ambientColor = Color.Black, spotColor = Color.Black)
-                .clip(RoundedCornerShape(12.dp))
+                .size(if (compact) 24.dp else 30.dp)
+                .shadow(elevation = 4.dp, shape = RoundedCornerShape(8.dp), ambientColor = Color.Black, spotColor = Color.Black)
+                .clip(RoundedCornerShape(8.dp))
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(EngineSurfaceVariant, EngineCardBg)
                     )
                 )
                 .border(
-                    width = 1.dp,
+                    width = 0.8.dp,
                     brush = Brush.verticalGradient(
                         colors = listOf(EngineWhiteBorder, Color(0x10FFFFFF))
                     ),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(8.dp)
                 ),
             contentAlignment = Alignment.Center
         ) {
@@ -72,60 +70,60 @@ fun KorvaLogo(
                 painter = painterResource(id = R.drawable.ic_korva_logo),
                 contentDescription = "Korva Engine Logo",
                 modifier = Modifier
-                    .size(if (compact) 32.dp else 38.dp)
-                    .clip(RoundedCornerShape(8.dp)),
+                    .size(if (compact) 20.dp else 24.dp)
+                    .clip(RoundedCornerShape(6.dp)),
                 contentScale = ContentScale.Crop
             )
         }
 
-        Spacer(modifier = Modifier.width(10.dp))
+        Spacer(modifier = Modifier.width(6.dp))
 
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = "korva",
                     color = TextPrimary,
-                    fontSize = if (compact) 16.sp else 20.sp,
+                    fontSize = if (compact) 12.sp else 13.5.sp,
                     fontWeight = FontWeight.Black,
                     fontFamily = FontFamily.SansSerif,
-                    letterSpacing = 1.1.sp
+                    letterSpacing = 0.8.sp
                 )
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(3.dp))
                 Text(
                     text = "engine",
                     color = EngineWhiteTranslucent,
-                    fontSize = if (compact) 16.sp else 20.sp,
+                    fontSize = if (compact) 12.sp else 13.5.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace,
-                    letterSpacing = 0.8.sp
+                    letterSpacing = 0.6.sp
                 )
 
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(4.dp))
 
                 // Translucent Engine Version Badge
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
+                        .clip(RoundedCornerShape(3.dp))
                         .background(EngineWhiteGlass)
-                        .border(0.8.dp, EngineWhiteBorder, RoundedCornerShape(4.dp))
-                        .padding(horizontal = 5.dp, vertical = 2.dp)
+                        .border(0.6.dp, EngineWhiteBorder, RoundedCornerShape(3.dp))
+                        .padding(horizontal = 4.dp, vertical = 1.dp)
                 ) {
                     Text(
-                        text = "v2.4",
+                        text = "v1.0",
                         color = EngineWhiteMuted,
-                        fontSize = 8.5.sp,
+                        fontSize = 7.5.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(1.dp))
 
             Text(
                 text = "بيئة تطوير ومحرك ألعاب",
                 color = TextSecondary,
-                fontSize = if (compact) 10.5.sp else 11.5.sp,
+                fontSize = if (compact) 8.sp else 9.sp,
                 fontWeight = FontWeight.Medium
             )
         }

@@ -30,7 +30,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -61,25 +60,25 @@ fun ProjectCard(
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val dateFormatted = SimpleDateFormat("yyyy/MM/dd - HH:mm", Locale.getDefault()).format(Date(project.lastModified))
+    val dateFormatted = SimpleDateFormat("yyyy/MM/dd", Locale.getDefault()).format(Date(project.lastModified))
 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(6.dp))
             .background(EngineCardBg)
             .border(
-                width = 0.8.dp,
+                width = 0.6.dp,
                 brush = Brush.horizontalGradient(
                     listOf(
                         EngineWhiteBorder,
                         EngineBorder
                     )
                 ),
-                shape = RoundedCornerShape(10.dp)
+                shape = RoundedCornerShape(6.dp)
             )
             .clickable { onClick() }
-            .padding(12.dp)
+            .padding(6.dp)
             .testTag("project_card_${project.id}")
     ) {
         Row(
@@ -92,86 +91,86 @@ fun ProjectCard(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.weight(1f)
             ) {
-                // Icon Avatar
+                // Icon Avatar (Compact: 26dp)
                 Box(
                     modifier = Modifier
-                        .size(42.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .size(26.dp)
+                        .clip(RoundedCornerShape(5.dp))
                         .background(EngineWhiteGlass)
-                        .border(0.8.dp, EngineWhiteBorder, RoundedCornerShape(8.dp)),
+                        .border(0.6.dp, EngineWhiteBorder, RoundedCornerShape(5.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Layers,
                         contentDescription = null,
                         tint = EngineWhiteTranslucent,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(13.dp)
                     )
                 }
 
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(6.dp))
 
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = project.name,
                             color = TextPrimary,
-                            fontSize = 14.sp,
+                            fontSize = 10.5.sp,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
 
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
 
                         // Template Badge (Translucent White)
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
+                                .clip(RoundedCornerShape(3.dp))
                                 .background(EngineWhiteSubtle)
-                                .border(0.6.dp, EngineWhiteBorder, RoundedCornerShape(4.dp))
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                .border(0.5.dp, EngineWhiteBorder, RoundedCornerShape(3.dp))
+                                .padding(horizontal = 4.dp, vertical = 1.dp)
                         ) {
                             Text(
                                 text = project.templateType,
                                 color = EngineWhiteMuted,
-                                fontSize = 9.sp,
+                                fontSize = 7.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(3.dp))
+                    Spacer(modifier = Modifier.height(1.dp))
 
                     // Path text
                     Text(
                         text = project.path,
                         color = TextMuted,
-                        fontSize = 10.5.sp,
+                        fontSize = 7.5.sp,
                         fontFamily = FontFamily.Monospace,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
 
                     // Meta row
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Default.Schedule,
                                 contentDescription = null,
                                 tint = TextMuted,
-                                modifier = Modifier.size(10.dp)
+                                modifier = Modifier.size(8.dp)
                             )
-                            Spacer(modifier = Modifier.width(3.dp))
+                            Spacer(modifier = Modifier.width(2.dp))
                             Text(
                                 text = dateFormatted,
                                 color = TextSecondary,
-                                fontSize = 9.5.sp
+                                fontSize = 7.5.sp
                             )
                         }
 
@@ -180,13 +179,13 @@ fun ProjectCard(
                                 imageVector = Icons.Default.Storage,
                                 contentDescription = null,
                                 tint = TextMuted,
-                                modifier = Modifier.size(10.dp)
+                                modifier = Modifier.size(8.dp)
                             )
-                            Spacer(modifier = Modifier.width(3.dp))
+                            Spacer(modifier = Modifier.width(2.dp))
                             Text(
                                 text = project.fileSize,
                                 color = TextSecondary,
-                                fontSize = 9.5.sp
+                                fontSize = 7.5.sp
                             )
                         }
 
@@ -195,34 +194,34 @@ fun ProjectCard(
                                 imageVector = Icons.Default.Code,
                                 contentDescription = null,
                                 tint = TextMuted,
-                                modifier = Modifier.size(10.dp)
+                                modifier = Modifier.size(8.dp)
                             )
-                            Spacer(modifier = Modifier.width(3.dp))
+                            Spacer(modifier = Modifier.width(2.dp))
                             Text(
-                                text = "${project.scenesCount} مشاهد • ${project.scriptsCount} برمجيات",
+                                text = "${project.scenesCount} scenes • ${project.scriptsCount} scripts",
                                 color = TextSecondary,
-                                fontSize = 9.5.sp
+                                fontSize = 7.5.sp
                             )
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(6.dp))
 
             // Action Buttons
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(3.dp)
             ) {
                 // Open Button (Translucent White)
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
+                        .clip(RoundedCornerShape(4.dp))
                         .background(EngineWhiteGlass)
-                        .border(0.8.dp, EngineWhiteBorder, RoundedCornerShape(6.dp))
+                        .border(0.6.dp, EngineWhiteBorder, RoundedCornerShape(4.dp))
                         .clickable { onClick() }
-                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                        .padding(horizontal = 7.dp, vertical = 3.dp)
                         .testTag("open_project_btn_${project.id}")
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -230,13 +229,13 @@ fun ProjectCard(
                             imageVector = Icons.Default.PlayArrow,
                             contentDescription = "فتح المشروع",
                             tint = EngineWhitePrimary,
-                            modifier = Modifier.size(14.dp)
+                            modifier = Modifier.size(10.dp)
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(2.dp))
                         Text(
                             text = "فتح",
                             color = EngineWhitePrimary,
-                            fontSize = 11.sp,
+                            fontSize = 8.5.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -246,7 +245,7 @@ fun ProjectCard(
                 IconButton(
                     onClick = { onDeleteClick() },
                     modifier = Modifier
-                        .size(30.dp)
+                        .size(20.dp)
                         .clip(CircleShape)
                         .testTag("delete_project_btn_${project.id}")
                 ) {
@@ -254,7 +253,7 @@ fun ProjectCard(
                         imageVector = Icons.Default.DeleteOutline,
                         contentDescription = "حذف المشروع",
                         tint = KorvaRed.copy(alpha = 0.8f),
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(12.dp)
                     )
                 }
             }

@@ -29,6 +29,33 @@ class ProjectRepository(
         projectDao.getProjectById(id)
     }
 
+    suspend fun ensureDefaultProjects() = withContext(Dispatchers.IO) {
+        try {
+            if (projectDao.getProjectCount() == 0) {
+                val defaultDir = getDefaultProjectsDirectory()
+                val darkVillageDir = File(defaultDir, "Dark Village")
+                if (!darkVillageDir.exists()) {
+                    darkVillageDir.mkdirs()
+                }
+                val defaultProject = ProjectEntity(
+                    name = "Dark Village",
+                    path = darkVillageDir.absolutePath,
+                    templateType = "2D Project",
+                    lastModified = System.currentTimeMillis(),
+                    fileSize = "12.4 MB",
+                    version = "v1.0.0",
+                    description = "مشروع لعبة 2D بأسلوب Pixel Art مع قرية مظلمة وتحكم كامل بالشخصية",
+                    colorHex = "#8B5CF6",
+                    scenesCount = 3,
+                    scriptsCount = 6
+                )
+                projectDao.insertProject(defaultProject)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     suspend fun createNewProject(
         name: String,
         basePath: String,
