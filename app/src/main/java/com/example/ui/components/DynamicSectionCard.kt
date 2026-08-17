@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -33,10 +34,13 @@ fun DynamicSectionCard(
     onPropertyValueChanged: (propertyId: String, newValue: PropertyValue) -> Unit,
     onToggleSectionEnabled: (Boolean) -> Unit,
     onRemoveSection: () -> Unit,
+    isInitiallyExpanded: Boolean = false,
+    isCompactMode: Boolean = false,
     onOpenTexturePreview: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    var isExpanded by remember { mutableStateOf(true) }
+    var isExpanded by remember(section.id, isInitiallyExpanded) { mutableStateOf(isInitiallyExpanded) }
+    var showAdvanced by remember { mutableStateOf(false) }
 
     val icon: ImageVector = when (section.name.lowercase()) {
         "transform" -> Icons.Default.OpenWith
@@ -52,38 +56,60 @@ fun DynamicSectionCard(
         else -> Icons.Default.Layers
     }
 
+    // Build a compact summary text for collapsed preview
+    val summaryText = remember(section.properties) {
+        when (section.name.lowercase()) {
+            "transform" -> {
+                val pos = section.properties.find { it.name.contains("pos", true) }?.value as? PropertyValue.Vector2Value
+                val rot = section.properties.find { it.name.contains("rot", true) }?.value as? PropertyValue.FloatValue
+                if (pos != null && rot != null) "(${pos.x.toInt()}, ${pos.y.toInt()}) ${rot.value.toInt()}°" else ""
+            }
+            "physics" -> {
+                val body = (section.properties.find { it.name.contains("body", true) }?.value as? PropertyValue.EnumValue)?.selected ?: "Dynamic"
+                "Body: $body"
+            }
+            "sprite" -> {
+                val col = (section.properties.find { it.name.contains("color", true) || it.name.contains("tint", true) }?.value as? PropertyValue.ColorValue)?.hex
+                col ?: "Visible"
+            }
+            else -> ""
+        }
+    }
+
     Card(
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = EngineSurface),
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
+            .padding(vertical = 3.dp)
             .border(
                 width = 0.8.dp,
-                color = if (section.isEnabled) StudioBorder else StudioBorder.copy(alpha = 0.4f),
-                shape = RoundedCornerShape(10.dp)
+                color = if (isExpanded) StudioPurpleLight.copy(alpha = 0.6f) else StudioBorder,
+                shape = RoundedCornerShape(8.dp)
             )
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            // Card Header (Touch-first collapsible)
+            // Card Header Accordion: [ ✥ Transform ˅ ]
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp))
-                    .background(if (section.isEnabled) StudioPurpleGlass else EngineBackground)
+                    .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp))
+                    .background(if (isExpanded) StudioPurpleDark.copy(alpha = 0.4f) else EngineBackground)
                     .clickable { isExpanded = !isExpanded }
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.weight(1f)
                 ) {
+                    // Chevron Indicator
                     Icon(
-                        imageVector = if (isExpanded) Icons.Default.ExpandMore else Icons.Default.ChevronRight,
-                        contentDescription = "Expand/Collapse",
-                        tint = StudioPurpleLight,
+                        imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = if (isExpanded) "Collapse" else "Expand",
+                        tint = if (isExpanded) StudioPurpleLight else TextSecondary,
                         modifier = Modifier.size(18.dp)
                     )
 
@@ -91,15 +117,25 @@ fun DynamicSectionCard(
                         imageVector = icon,
                         contentDescription = null,
                         tint = if (section.isEnabled) StudioPurpleLight else TextMuted,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(15.dp)
                     )
 
                     Text(
                         text = section.name,
                         color = if (section.isEnabled) TextPrimary else TextMuted,
-                        fontSize = 12.5.sp,
+                        fontSize = 11.5.sp,
                         fontWeight = FontWeight.Bold
                     )
+
+                    if (!isExpanded && summaryText.isNotBlank()) {
+                        Text(
+                            text = summaryText,
+                            color = TextMuted,
+                            fontSize = 9.5.sp,
+                            fontFamily = FontFamily.Monospace,
+                            maxLines = 1
+                        )
+                    }
                 }
 
                 Row(
@@ -116,27 +152,27 @@ fun DynamicSectionCard(
                             uncheckedThumbColor = TextMuted,
                             uncheckedTrackColor = EngineCardBg
                         ),
-                        modifier = Modifier.size(34.dp, 20.dp)
+                        modifier = Modifier.size(30.dp, 18.dp)
                     )
 
                     // Remove Section Button
                     if (section.isRemovable) {
                         IconButton(
                             onClick = onRemoveSection,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(22.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Remove Section",
                                 tint = StudioRed.copy(alpha = 0.8f),
-                                modifier = Modifier.size(14.dp)
+                                modifier = Modifier.size(12.dp)
                             )
                         }
                     }
                 }
             }
 
-            // Card Body (Collapsible Properties List)
+            // Card Body (Collapsible Properties with Progressive Disclosure)
             AnimatedVisibility(
                 visible = isExpanded && section.isEnabled,
                 enter = fadeIn() + expandVertically(),
@@ -145,20 +181,66 @@ fun DynamicSectionCard(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    section.properties.forEach { property ->
+                    // Split properties into primary & advanced
+                    val primaryCount = if (section.name.equals("Physics", true)) 3 else 5
+                    val primaryProperties = section.properties.take(primaryCount)
+                    val advancedProperties = section.properties.drop(primaryCount)
+
+                    primaryProperties.forEach { property ->
                         DynamicPropertyWidget(
                             property = property,
                             onValueChanged = { newVal ->
                                 onPropertyValueChanged(property.id, newVal)
                             },
+                            isCompact = isCompactMode,
                             onOpenTexturePreview = onOpenTexturePreview
                         )
+                    }
+
+                    if (advancedProperties.isNotEmpty()) {
+                        // Advanced Progressive Disclosure Toggle: Advanced ▸ / ▾
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .clickable { showAdvanced = !showAdvanced }
+                                .padding(horizontal = 4.dp, vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = if (showAdvanced) "خيارات متقدمة ▾" else "خيارات متقدمة ▸",
+                                color = StudioPurpleLight,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "(${advancedProperties.size})",
+                                color = TextMuted,
+                                fontSize = 9.sp
+                            )
+                        }
+
+                        if (showAdvanced) {
+                            advancedProperties.forEach { property ->
+                                DynamicPropertyWidget(
+                                    property = property,
+                                    onValueChanged = { newVal ->
+                                        onPropertyValueChanged(property.id, newVal)
+                                    },
+                                    isCompact = isCompactMode,
+                                    onOpenTexturePreview = onOpenTexturePreview
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
     }
 }
+

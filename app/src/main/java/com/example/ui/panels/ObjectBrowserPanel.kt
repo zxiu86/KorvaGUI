@@ -51,7 +51,7 @@ fun ObjectBrowserPanel(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(EngineBackground)
-                .padding(horizontal = 10.dp, vertical = 8.dp),
+                .padding(horizontal = 8.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -60,13 +60,13 @@ fun ObjectBrowserPanel(
                     imageVector = Icons.Default.Widgets,
                     contentDescription = null,
                     tint = StudioPurpleLight,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(15.dp)
                 )
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(5.dp))
                 Text(
-                    text = "مستعرض الكائنات (Objects)",
+                    text = "الكائنات (Objects)",
                     color = TextPrimary,
-                    fontSize = 12.5.sp,
+                    fontSize = 11.5.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -76,13 +76,13 @@ fun ObjectBrowserPanel(
                     selectedTargetLayerId = layers.firstOrNull()?.id ?: ""
                     showCreateDialog = true
                 },
-                modifier = Modifier.size(26.dp)
+                modifier = Modifier.size(24.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
                     contentDescription = "New Object",
                     tint = StudioPurpleLight,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(15.dp)
                 )
             }
         }
@@ -91,13 +91,13 @@ fun ObjectBrowserPanel(
         OutlinedTextField(
             value = searchQuery,
             onValueChange = { searchQuery = it },
-            placeholder = { Text("بحث عن كائن...", color = TextMuted, fontSize = 11.sp) },
+            placeholder = { Text("بحث عن كائن...", color = TextMuted, fontSize = 10.sp) },
             singleLine = true,
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = TextMuted, modifier = Modifier.size(15.dp)) },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = TextMuted, modifier = Modifier.size(13.dp)) },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 4.dp)
-                .height(40.dp),
+                .padding(horizontal = 6.dp, vertical = 3.dp)
+                .height(36.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = StudioPurpleLight,
                 unfocusedBorderColor = StudioBorder,
@@ -106,13 +106,13 @@ fun ObjectBrowserPanel(
             )
         )
 
-        // Grouped Objects by Layer
+        // Compact Hierarchical Object List (Requirement 9: single row per object)
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .padding(horizontal = 6.dp, vertical = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+                .padding(horizontal = 4.dp, vertical = 2.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             layers.forEach { layer ->
                 val filteredObjects = layer.objects.filter {
@@ -124,20 +124,30 @@ fun ObjectBrowserPanel(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(StudioPurpleDark.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
-                                .padding(horizontal = 6.dp, vertical = 3.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(StudioPurpleDark.copy(alpha = 0.35f))
+                                .padding(horizontal = 6.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Icon(Icons.Default.Layers, contentDescription = null, tint = StudioPurpleLight, modifier = Modifier.size(12.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(layer.name, color = StudioPurpleLight, fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("(${filteredObjects.size})", color = TextMuted, fontSize = 9.5.sp)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Layers,
+                                    contentDescription = null,
+                                    tint = StudioPurpleLight,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(layer.name, color = StudioPurpleLight, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Text("(${filteredObjects.size})", color = TextMuted, fontSize = 9.sp)
                         }
                     }
 
                     items(filteredObjects, key = { it.id }) { obj ->
                         val isSelected = selectedObjectId == obj.id
+                        var showMenu by remember { mutableStateOf(false) }
+
                         val objIcon = when {
                             obj.name.contains("player", true) -> "👤"
                             obj.name.contains("enemy", true) -> "👹"
@@ -151,18 +161,19 @@ fun ObjectBrowserPanel(
                             else -> "📦"
                         }
 
+                        // Compact Single Row: 👁 SkyGradient  ⋮
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(6.dp))
+                                .clip(RoundedCornerShape(4.dp))
                                 .background(if (isSelected) StudioPurpleDark else EngineCardBg)
                                 .border(
-                                    0.8.dp,
+                                    0.6.dp,
                                     if (isSelected) StudioPurpleLight else StudioBorder,
-                                    RoundedCornerShape(6.dp)
+                                    RoundedCornerShape(4.dp)
                                 )
                                 .clickable { onSelectObject(obj.id) }
-                                .padding(horizontal = 8.dp, vertical = 5.dp),
+                                .padding(horizontal = 4.dp, vertical = 2.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
@@ -170,28 +181,6 @@ fun ObjectBrowserPanel(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text(objIcon, fontSize = 12.sp)
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = obj.name,
-                                    color = if (isSelected) Color.White else TextPrimary,
-                                    fontSize = 11.5.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    maxLines = 1
-                                )
-                            }
-
-                            // Quick Action Icons
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                // Duplicate
-                                IconButton(
-                                    onClick = { onDuplicateObject(obj.id) },
-                                    modifier = Modifier.size(20.dp)
-                                ) {
-                                    Icon(Icons.Default.ContentCopy, contentDescription = "Duplicate", tint = TextMuted, modifier = Modifier.size(11.dp))
-                                }
-
-                                // Visibility
                                 IconButton(
                                     onClick = { onToggleObjectVisibility(obj.id) },
                                     modifier = Modifier.size(20.dp)
@@ -199,17 +188,65 @@ fun ObjectBrowserPanel(
                                     Icon(
                                         imageVector = if (obj.isVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
                                         contentDescription = "Visibility",
-                                        tint = if (obj.isVisible) TextSecondary else StudioRed,
+                                        tint = if (obj.isVisible) TextMuted else StudioRed,
                                         modifier = Modifier.size(12.dp)
                                     )
                                 }
 
-                                // Delete
+                                Text(objIcon, fontSize = 11.sp)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = obj.name,
+                                    color = if (isSelected) Color.White else TextPrimary,
+                                    fontSize = 10.5.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    maxLines = 1
+                                )
+                            }
+
+                            // Clean single ⋮ Menu
+                            Box {
                                 IconButton(
-                                    onClick = { onDeleteObject(obj.id) },
+                                    onClick = { showMenu = true },
                                     modifier = Modifier.size(20.dp)
                                 ) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = StudioRed.copy(alpha = 0.7f), modifier = Modifier.size(12.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.MoreVert,
+                                        contentDescription = "Actions",
+                                        tint = if (isSelected) StudioPurpleLight else TextMuted,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                }
+
+                                DropdownMenu(
+                                    expanded = showMenu,
+                                    onDismissRequest = { showMenu = false },
+                                    modifier = Modifier.background(EngineSurface)
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("استنساخ (Duplicate)", color = TextPrimary, fontSize = 11.sp) },
+                                        leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null, tint = StudioPurpleLight, modifier = Modifier.size(14.dp)) },
+                                        onClick = {
+                                            onDuplicateObject(obj.id)
+                                            showMenu = false
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(if (obj.isLocked) "إلغاء القفل (Unlock)" else "قفل (Lock)", color = TextPrimary, fontSize = 11.sp) },
+                                        leadingIcon = { Icon(if (obj.isLocked) Icons.Default.LockOpen else Icons.Default.Lock, contentDescription = null, tint = StudioYellow, modifier = Modifier.size(14.dp)) },
+                                        onClick = {
+                                            onToggleObjectLock(obj.id)
+                                            showMenu = false
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("حذف (Delete)", color = StudioRed, fontSize = 11.sp) },
+                                        leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = StudioRed, modifier = Modifier.size(14.dp)) },
+                                        onClick = {
+                                            onDeleteObject(obj.id)
+                                            showMenu = false
+                                        }
+                                    )
                                 }
                             }
                         }

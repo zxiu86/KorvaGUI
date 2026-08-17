@@ -323,7 +323,73 @@ fun EditorWorkspaceScreen(
                                 .fillMaxWidth()
                         )
 
-                        // Bottom Panels (Timeline / Assets / Console)
+                        // Bottom Panels (Timeline / Assets / Console / Bottom Sheet)
+                        if (!isTimelineVisible && !isFullscreen) {
+                            // Mini Dock bar at bottom
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(EngineSurface)
+                                    .border(0.6.dp, StudioBorder)
+                                    .padding(horizontal = 8.dp, vertical = 3.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(EngineCardBg)
+                                            .clickable {
+                                                bottomPanelMode = BottomPanelMode.ASSETS
+                                                isTimelineVisible = true
+                                            }
+                                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Default.Folder, contentDescription = null, tint = StudioPurpleLight, modifier = Modifier.size(12.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("الموارد (Assets)", color = TextSecondary, fontSize = 9.5.sp, fontWeight = FontWeight.Medium)
+                                        }
+                                    }
+
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(EngineCardBg)
+                                            .clickable {
+                                                bottomPanelMode = BottomPanelMode.TIMELINE
+                                                isTimelineVisible = true
+                                            }
+                                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Default.Timeline, contentDescription = null, tint = StudioPurpleLight, modifier = Modifier.size(12.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("التحريك (Timeline)", color = TextSecondary, fontSize = 9.5.sp, fontWeight = FontWeight.Medium)
+                                        }
+                                    }
+
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(EngineCardBg)
+                                            .clickable {
+                                                bottomPanelMode = BottomPanelMode.CONSOLE
+                                                isTimelineVisible = true
+                                            }
+                                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Default.Terminal, contentDescription = null, tint = StudioPurpleLight, modifier = Modifier.size(12.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("السجل (Console)", color = TextSecondary, fontSize = 9.5.sp, fontWeight = FontWeight.Medium)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         AnimatedVisibility(
                             visible = isTimelineVisible && !isFullscreen,
                             enter = expandVertically() + fadeIn(),
@@ -397,7 +463,7 @@ fun EditorWorkspaceScreen(
                                                 .height(90.dp)
                                                 .background(EngineBackground)
                                                 .padding(6.dp),
-                                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                                             verticalArrangement = Arrangement.spacedBy(2.dp)
                                         ) {
                                             items(uiState.engineLogs) { log ->
                                                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -430,8 +496,10 @@ fun EditorWorkspaceScreen(
                         enter = expandHorizontally() + fadeIn(),
                         exit = shrinkHorizontally() + fadeOut()
                     ) {
+                        val activeLayerName = uiState.activeScene?.layers?.find { it.id == uiState.selectedObject?.layerId }?.name ?: "World"
                         ObjectInspectorPanel(
                             selectedObject = uiState.selectedObject,
+                            layerName = activeLayerName,
                             onPropertyValueChanged = { secId, propId, newVal ->
                                 viewModel.setKorvaProperty(secId, propId, newVal)
                             },
