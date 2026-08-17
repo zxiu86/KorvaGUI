@@ -60,9 +60,14 @@ fun DynamicSectionCard(
     val summaryText = remember(section.properties) {
         when (section.name.lowercase()) {
             "transform" -> {
-                val pos = section.properties.find { it.name.contains("pos", true) }?.value as? PropertyValue.Vector2Value
-                val rot = section.properties.find { it.name.contains("rot", true) }?.value as? PropertyValue.FloatValue
-                if (pos != null && rot != null) "(${pos.x.toInt()}, ${pos.y.toInt()}) ${rot.value.toInt()}°" else ""
+                val posProp = section.properties.find { it.name.contains("pos", true) }?.value
+                val posStr = when (posProp) {
+                    is PropertyValue.Vector2Value -> "(${posProp.x.toInt()}, ${posProp.y.toInt()})"
+                    is PropertyValue.Vector2iValue -> "(${posProp.x}, ${posProp.y})"
+                    else -> ""
+                }
+                val rot = (section.properties.find { it.name.contains("rot", true) }?.value as? PropertyValue.FloatValue)?.value?.toInt() ?: 0
+                "$posStr ${rot}°".trim()
             }
             "physics" -> {
                 val body = (section.properties.find { it.name.contains("body", true) }?.value as? PropertyValue.EnumValue)?.selected ?: "Dynamic"

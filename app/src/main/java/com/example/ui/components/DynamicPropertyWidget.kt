@@ -6,9 +6,11 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -19,7 +21,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -59,7 +64,7 @@ fun DynamicPropertyWidget(
                     color = TextSecondary,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium,
-                    modifier = Modifier.width(68.dp)
+                    modifier = Modifier.width(64.dp)
                 )
 
                 Row(
@@ -67,21 +72,23 @@ fun DynamicPropertyWidget(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Compact X
                     CompactAxisInput(
                         label = "X",
                         value = vec.x,
                         color = StudioRed,
-                        onValueChange = { onValueChanged(PropertyValue.Vector2Value(it, vec.y)) },
+                        onValueChange = { newX ->
+                            onValueChanged(PropertyValue.Vector2Value(newX, vec.y))
+                        },
                         modifier = Modifier.weight(1f)
                     )
 
-                    // Compact Y
                     CompactAxisInput(
                         label = "Y",
                         value = vec.y,
                         color = StudioGreen,
-                        onValueChange = { onValueChanged(PropertyValue.Vector2Value(vec.x, it)) },
+                        onValueChange = { newY ->
+                            onValueChanged(PropertyValue.Vector2Value(vec.x, newY))
+                        },
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -102,7 +109,7 @@ fun DynamicPropertyWidget(
                     color = TextSecondary,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium,
-                    modifier = Modifier.width(68.dp)
+                    modifier = Modifier.width(64.dp)
                 )
 
                 Row(
@@ -114,14 +121,18 @@ fun DynamicPropertyWidget(
                         label = "X",
                         value = vec.x.toFloat(),
                         color = StudioRed,
-                        onValueChange = { onValueChanged(PropertyValue.Vector2iValue(it.toInt(), vec.y)) },
+                        onValueChange = { newX ->
+                            onValueChanged(PropertyValue.Vector2iValue(newX.roundToInt(), vec.y))
+                        },
                         modifier = Modifier.weight(1f)
                     )
                     CompactAxisInput(
                         label = "Y",
                         value = vec.y.toFloat(),
                         color = StudioGreen,
-                        onValueChange = { onValueChanged(PropertyValue.Vector2iValue(vec.x, it.toInt())) },
+                        onValueChange = { newY ->
+                            onValueChanged(PropertyValue.Vector2iValue(vec.x, newY.roundToInt()))
+                        },
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -130,8 +141,8 @@ fun DynamicPropertyWidget(
 
         PropertyType.FLOAT -> {
             val currentVal = (property.value as? PropertyValue.FloatValue)?.value ?: 0f
-            val min = property.min ?: 0f
-            val max = property.max ?: 100f
+            val min = property.min ?: -360f
+            val max = property.max ?: 360f
             val step = property.step ?: 0.1f
             val isRotation = property.name.contains("rot", true) || property.name.contains("angle", true)
 
@@ -152,23 +163,14 @@ fun DynamicPropertyWidget(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        // Quick Stepper / Number pill
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(EngineCardBg)
-                                .border(0.6.dp, StudioBorder, RoundedCornerShape(4.dp))
-                                .clickable { isExpandedDial = !isExpandedDial }
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = if (isRotation) "${currentVal.roundToInt()}°" else String.format("%.1f", currentVal),
-                                color = TextPrimary,
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                        // Interactive Drag & Number Pill
+                        CompactAxisInput(
+                            label = if (isRotation) "°" else "V",
+                            value = currentVal,
+                            color = StudioPurpleLight,
+                            onValueChange = { onValueChanged(PropertyValue.FloatValue(it)) },
+                            modifier = Modifier.widthIn(min = 70.dp)
+                        )
 
                         if (isRotation) {
                             IconButton(
@@ -181,18 +183,32 @@ fun DynamicPropertyWidget(
                                 Icon(Icons.Default.RotateRight, contentDescription = "Rotate 45", tint = StudioPurpleLight, modifier = Modifier.size(14.dp))
                             }
                         }
+
+                        IconButton(
+                            onClick = { isExpandedDial = !isExpandedDial },
+                            modifier = Modifier.size(22.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isExpandedDial) Icons.Default.ExpandLess else Icons.Default.Tune,
+                                contentDescription = "Slider",
+                                tint = if (isExpandedDial) StudioPurpleLight else TextMuted,
+                                modifier = Modifier.size(13.dp)
+                            )
+                        }
                     }
                 }
 
-                // Expandable Precision Slider on tap
+                // Slider Control
                 if (isExpandedDial || !isCompact) {
+                    val rangeMin = if (min < -1000f) -100f else min
+                    val rangeMax = if (max > 1000f) 100f else max
                     Slider(
-                        value = currentVal.coerceIn(min, max),
+                        value = currentVal.coerceIn(rangeMin, rangeMax),
                         onValueChange = {
                             val rounded = (it / step).roundToInt() * step
                             onValueChanged(PropertyValue.FloatValue(rounded))
                         },
-                        valueRange = min..max,
+                        valueRange = rangeMin..rangeMax,
                         colors = SliderDefaults.colors(
                             thumbColor = StudioPurpleLight,
                             activeTrackColor = StudioPurple,
@@ -206,8 +222,8 @@ fun DynamicPropertyWidget(
 
         PropertyType.INT -> {
             val currentVal = (property.value as? PropertyValue.IntValue)?.value ?: 0
-            val min = (property.min ?: 0f).toInt()
-            val max = (property.max ?: 100f).toInt()
+            val min = (property.min ?: -1000f).toInt()
+            val max = (property.max ?: 1000f).toInt()
 
             Row(
                 modifier = modifier
@@ -234,18 +250,12 @@ fun DynamicPropertyWidget(
                         Icon(Icons.Default.Remove, contentDescription = "Decrease", tint = TextPrimary, modifier = Modifier.size(12.dp))
                     }
 
-                    Text(
-                        text = currentVal.toString(),
-                        color = TextPrimary,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace,
-                        modifier = Modifier
-                            .widthIn(min = 28.dp)
-                            .background(EngineCardBg, RoundedCornerShape(4.dp))
-                            .border(0.6.dp, StudioBorder, RoundedCornerShape(4.dp))
-                            .padding(horizontal = 4.dp, vertical = 2.dp),
-                        textAlign = TextAlign.Center
+                    CompactAxisInput(
+                        label = "#",
+                        value = currentVal.toFloat(),
+                        color = StudioPurpleLight,
+                        onValueChange = { onValueChanged(PropertyValue.IntValue(it.roundToInt().coerceIn(min, max))) },
+                        modifier = Modifier.widthIn(min = 55.dp)
                     )
 
                     IconButton(
@@ -352,35 +362,82 @@ fun DynamicPropertyWidget(
                 StudioPurple
             }
 
-            Row(
-                modifier = modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 2.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = property.name,
-                    color = TextSecondary,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium
-                )
+            var showHexEditor by remember { mutableStateOf(false) }
 
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Box(
-                        modifier = Modifier
-                            .size(16.dp)
-                            .clip(CircleShape)
-                            .background(parsedColor)
-                            .border(1.dp, Color.White.copy(alpha = 0.6f), CircleShape)
+            Column(modifier = modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = property.name,
+                        color = TextSecondary,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
                     )
-                    listOf("#8B5CF6", "#EF4444", "#22C55E", "#38BDF8", "#FBBF24").forEach { hex ->
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
                         Box(
                             modifier = Modifier
-                                .size(12.dp)
+                                .size(18.dp)
                                 .clip(CircleShape)
-                                .background(Color(android.graphics.Color.parseColor(hex)))
-                                .clickable { onValueChanged(PropertyValue.ColorValue(hex)) }
+                                .background(parsedColor)
+                                .border(1.2.dp, Color.White.copy(alpha = 0.8f), CircleShape)
+                                .clickable { showHexEditor = !showHexEditor }
+                        )
+
+                        listOf("#8B5CF6", "#EF4444", "#22C55E", "#38BDF8", "#FBBF24", "#FFFFFF", "#1E293B").forEach { hex ->
+                            val chipColor = try { Color(android.graphics.Color.parseColor(hex)) } catch (e: Exception) { Color.Gray }
+                            val isChosen = hex.equals(colVal, ignoreCase = true)
+                            Box(
+                                modifier = Modifier
+                                    .size(13.dp)
+                                    .clip(CircleShape)
+                                    .background(chipColor)
+                                    .border(if (isChosen) 1.2.dp else 0.4.dp, if (isChosen) Color.White else Color.Transparent, CircleShape)
+                                    .clickable { onValueChanged(PropertyValue.ColorValue(hex)) }
+                            )
+                        }
+                    }
+                }
+
+                if (showHexEditor) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        Text("HEX: ", color = TextMuted, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+                        var hexText by remember(colVal) { mutableStateOf(colVal) }
+                        BasicTextField(
+                            value = hexText,
+                            onValueChange = {
+                                hexText = it
+                                if (it.startsWith("#") && (it.length == 7 || it.length == 9)) {
+                                    try {
+                                        android.graphics.Color.parseColor(it)
+                                        onValueChanged(PropertyValue.ColorValue(it))
+                                    } catch (ignored: Exception) {}
+                                }
+                            },
+                            textStyle = TextStyle(
+                                color = TextPrimary,
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            ),
+                            cursorBrush = SolidColor(StudioPurpleLight),
+                            modifier = Modifier
+                                .width(76.dp)
+                                .background(EngineCardBg, RoundedCornerShape(4.dp))
+                                .border(0.6.dp, StudioBorder, RoundedCornerShape(4.dp))
+                                .padding(horizontal = 4.dp, vertical = 2.dp)
                         )
                     }
                 }
@@ -463,6 +520,9 @@ fun DynamicPropertyWidget(
     }
 }
 
+/**
+ * High-performance, tactile number input with horizontal drag-scrubbing and direct text editing.
+ */
 @Composable
 private fun CompactAxisInput(
     label: String,
@@ -471,28 +531,92 @@ private fun CompactAxisInput(
     onValueChange: (Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var isEditing by remember { mutableStateOf(false) }
-    var textValue by remember(value) { mutableStateOf(String.format("%.0f", value)) }
+    val focusManager = LocalFocusManager.current
+    var isEditingText by remember { mutableStateOf(false) }
+    var textInput by remember(value) { mutableStateOf(if (value % 1f == 0f) value.toInt().toString() else String.format("%.1f", value)) }
 
-    Row(
+    var dragAccumulator by remember { mutableFloatStateOf(0f) }
+
+    Box(
         modifier = modifier
             .clip(RoundedCornerShape(4.dp))
             .background(EngineCardBg)
-            .border(0.6.dp, StudioBorder, RoundedCornerShape(4.dp))
-            .clickable { isEditing = !isEditing }
-            .padding(horizontal = 4.dp, vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center
+            .border(
+                0.6.dp,
+                if (isEditingText) StudioPurpleLight else StudioBorder,
+                RoundedCornerShape(4.dp)
+            )
+            .pointerInput(value) {
+                detectDragGestures(
+                    onDragStart = {
+                        dragAccumulator = value
+                    },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        dragAccumulator += dragAmount.x * 0.5f
+                        onValueChange(dragAccumulator)
+                    }
+                )
+            }
+            .clickable {
+                isEditingText = !isEditingText
+            }
+            .padding(horizontal = 5.dp, vertical = 3.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Text(label, color = color, fontWeight = FontWeight.Bold, fontSize = 10.sp)
-        Spacer(modifier = Modifier.width(3.dp))
-        Text(
-            text = String.format("%.0f", value),
-            color = TextPrimary,
-            fontSize = 10.5.sp,
-            fontFamily = FontFamily.Monospace,
-            fontWeight = FontWeight.Medium
-        )
+        if (isEditingText) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text(label, color = color, fontWeight = FontWeight.Bold, fontSize = 10.sp)
+                Spacer(modifier = Modifier.width(3.dp))
+                BasicTextField(
+                    value = textInput,
+                    onValueChange = { input ->
+                        textInput = input
+                        val parsed = input.toFloatOrNull()
+                        if (parsed != null) {
+                            onValueChange(parsed)
+                        }
+                    },
+                    textStyle = TextStyle(
+                        color = TextPrimary,
+                        fontSize = 10.5.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    ),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Decimal,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = {
+                            isEditingText = false
+                            focusManager.clearFocus()
+                        }
+                    ),
+                    cursorBrush = SolidColor(StudioPurpleLight),
+                    modifier = Modifier.widthIn(min = 32.dp)
+                )
+            }
+        } else {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text(label, color = color, fontWeight = FontWeight.Bold, fontSize = 10.sp)
+                Spacer(modifier = Modifier.width(3.dp))
+                Text(
+                    text = if (value % 1f == 0f) value.toInt().toString() else String.format("%.1f", value),
+                    color = TextPrimary,
+                    fontSize = 10.5.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1
+                )
+            }
+        }
     }
 }
-

@@ -273,10 +273,36 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val cmd = SetPropertyCommand(obj, sectionId, propertyId, newValue, eventBus)
         executeEngineCommand(cmd)
 
-        // Sync with legacy node if matches
-        if (propertyId == "pos" && newValue is PropertyValue.Vector2Value) {
-            setSelectedNodeExactPos(newValue.x, newValue.y)
+        // Real-time synchronization with SceneNode in Viewport
+        val selectedId = obj.id
+        _sceneNodes.update { list ->
+            list.map { node ->
+                if (node.id == selectedId) {
+                    when {
+                        propertyId.contains("pos", true) && newValue is PropertyValue.Vector2Value ->
+                            node.copy(posX = newValue.x, posY = newValue.y)
+                        propertyId.contains("pos", true) && newValue is PropertyValue.Vector2iValue ->
+                            node.copy(posX = newValue.x.toFloat(), posY = newValue.y.toFloat())
+                        propertyId.contains("rot", true) && newValue is PropertyValue.FloatValue ->
+                            node.copy(rotation = newValue.value)
+                        propertyId.contains("scale", true) && newValue is PropertyValue.Vector2Value ->
+                            node.copy(scale = newValue.x)
+                        propertyId.contains("scale", true) && newValue is PropertyValue.FloatValue ->
+                            node.copy(scale = newValue.value)
+                        (propertyId.contains("tint", true) || propertyId.contains("color", true)) && newValue is PropertyValue.ColorValue ->
+                            node.copy(colorHex = newValue.hex)
+                        propertyId.contains("mass", true) && newValue is PropertyValue.FloatValue ->
+                            node.copy(mass = newValue.value, hasPhysics = newValue.value > 0f)
+                        propertyId.contains("gravity", true) && newValue is PropertyValue.BoolValue ->
+                            node.copy(hasPhysics = newValue.value)
+                        propertyId.contains("body_type", true) && newValue is PropertyValue.EnumValue ->
+                            node.copy(hasPhysics = newValue.selected.equals("Dynamic", true))
+                        else -> node
+                    }
+                } else node
+            }
         }
+        _engineProjectRevision.update { it + 1 }
     }
 
     fun toggleKorvaSectionEnabled(sectionId: String, enabled: Boolean) {
@@ -625,12 +651,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateSelectedNodePos(dx: Float, dy: Float) {
         val selectedId = _selectedNodeId.value ?: return
+        var newX = 0f
+        var newY = 0f
         _sceneNodes.update { list ->
             list.map { node ->
                 if (node.id == selectedId) {
-                    node.copy(posX = node.posX + dx, posY = node.posY + dy)
+                    newX = node.posX + dx
+                    newY = node.posY + dy
+                    node.copy(posX = newX, posY = newY)
                 } else node
             }
+        }
+        val obj = uiState.value.selectedObject
+        if (obj != null && obj.id == selectedId) {
+            val transformSec = obj.sections.find { it.name.equals("Transform", true) || it.id.contains("transform", true) }
+            val posProp = transformSec?.properties?.find { it.id.contains("pos", true) }
+            if (posProp?.value is PropertyValue.Vector2iValue) {
+                posProp.setValue(PropertyValue.Vector2iValue(newX.toInt(), newY.toInt()))
+            } else {
+                posProp?.setValue(PropertyValue.Vector2Value(newX, newY))
+            }
+            _engineProjectRevision.update { it + 1 }
         }
     }
 
@@ -643,16 +684,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 } else node
             }
         }
+        val obj = uiState.value.selectedObject
+        if (obj != null && obj.id == selectedId) {
+            val transformSec = obj.sections.find { it.name.equals("Transform", true) || it.id.contains("transform", true) }
+            val posProp = transformSec?.properties?.find { it.id.contains("pos", true) }
+            if (posProp?.value is PropertyValue.Vector2iValue) {
+                posProp.setValue(PropertyValue.Vector2iValue(x.toInt(), y.toInt()))
+            } else {
+                posProp?.setValue(PropertyValue.Vector2Value(x, y))
+            }
+            _engineProjectRevision.update { it + 1 }
+        }
     }
 
     fun setSelectedNodeExactScale(scale: Float) {
         val selectedId = _selectedNodeId.value ?: return
+        val clamped = scale.coerceIn(0.1f, 10f)
         _sceneNodes.update { list ->
             list.map { node ->
                 if (node.id == selectedId) {
-                    node.copy(scale = scale.coerceIn(0.1f, 10f))
+                    node.copy(scale = clamped)
                 } else node
             }
+        }
+        val obj = uiState.value.selectedObject
+        if (obj != null && obj.id == selectedId) {
+            val transformSec = obj.sections.find { it.name.equals("Transform", true) || it.id.contains("transform", true) }
+            val scaleProp = transformSec?.properties?.find { it.id.contains("scale", true) }
+            scaleProp?.setValue(PropertyValue.Vector2Value(clamped, clamped))
+            _engineProjectRevision.update { it + 1 }
         }
     }
 
@@ -664,6 +724,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     node.copy(rotation = rotation)
                 } else node
             }
+        }
+        val obj = uiState.value.selectedObject
+        if (obj != null && obj.id == selectedId) {
+            val transformSec = obj.sections.find { it.name.equals("Transform", true) || it.id.contains("transform", true) }
+            val rotProp = transformSec?.properties?.find { it.id.contains("rot", true) }
+            rotProp?.setValue(PropertyValue.FloatValue(rotation))
+            _engineProjectRevision.update { it + 1 }
         }
     }
 

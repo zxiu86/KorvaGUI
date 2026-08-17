@@ -9,19 +9,16 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -34,35 +31,24 @@ import androidx.compose.material.icons.filled.CenterFocusStrong
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.CropFree
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.FlipToBack
 import androidx.compose.material.icons.filled.FlipToFront
 import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.LocationSearching
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.NearMe
 import androidx.compose.material.icons.filled.OpenWith
 import androidx.compose.material.icons.filled.PanTool
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.RotateRight
 import androidx.compose.material.icons.filled.Science
-import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material.icons.filled.Transform
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.Videocam
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.icons.filled.ZoomIn
-import androidx.compose.material.icons.filled.ZoomOut
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -85,7 +71,6 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -93,7 +78,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.NodeType
@@ -105,10 +89,8 @@ import com.example.ui.theme.StudioBlue
 import com.example.ui.theme.StudioBorder
 import com.example.ui.theme.StudioGreen
 import com.example.ui.theme.StudioOrange
-import com.example.ui.theme.StudioPink
 import com.example.ui.theme.StudioPurple
 import com.example.ui.theme.StudioPurpleDark
-import com.example.ui.theme.StudioPurpleGlass
 import com.example.ui.theme.StudioPurpleLight
 import com.example.ui.theme.StudioRed
 import com.example.ui.theme.StudioYellow
@@ -162,7 +144,7 @@ fun StudioViewport(
     // Tools & Options
     var activeTool by remember { mutableStateOf(ViewportTool.MOVE) }
     var isGridVisible by remember { mutableStateOf(true) }
-    var isGridSnapEnabled by remember { mutableStateOf(true) }
+    var isGridSnapEnabled by remember { mutableStateOf(false) } // Default to free continuous movement
     var gridSizePx by remember { mutableIntStateOf(32) }
     var showColliders by remember { mutableStateOf(true) }
     var showLightingAmbiance by remember { mutableStateOf(true) }
@@ -211,123 +193,178 @@ fun StudioViewport(
         }
 
         // =========================================================================
-        // 1. High Performance 2D Engine Canvas (Grid, Nodes, Gizmos, Lighting)
+        // 1. High Performance 2D Engine Canvas with Unified Infinite Gesture Engine
         // =========================================================================
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
-                .pointerInput(activeTool, cameraZoom, cameraPanX, cameraPanY, selectedNode, allNodes, isGridSnapEnabled, gridSizePx) {
-                    // Tap to Select / Inspect
-                    detectTapGestures { tapOffset ->
-                        val worldPos = screenToWorld(tapOffset.x, tapOffset.y)
-                        cursorWorldX = worldPos.x
-                        cursorWorldY = worldPos.y
+                .pointerInput(
+                    activeTool,
+                    cameraZoom,
+                    cameraPanX,
+                    cameraPanY,
+                    selectedNode,
+                    allNodes,
+                    isGridSnapEnabled,
+                    gridSizePx
+                ) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val downPos = down.position
+                        val worldDown = screenToWorld(downPos.x, downPos.y)
+                        cursorWorldX = worldDown.x
+                        cursorWorldY = worldDown.y
 
                         // Hit-test nodes in reverse order (topmost layer first)
-                        var clickedNode: SceneNode? = null
+                        var hitNode: SceneNode? = null
                         for (node in allNodes.reversed()) {
                             if (!node.isVisible) continue
                             val nodeScreen = worldToScreen(node.posX, node.posY)
                             val baseRadius = 26f * node.scale * cameraZoom
-                            val touchRadius = baseRadius.coerceAtLeast(32f)
+                            val touchRadius = baseRadius.coerceAtLeast(36f)
 
-                            val distSq = (tapOffset.x - nodeScreen.x) * (tapOffset.x - nodeScreen.x) +
-                                    (tapOffset.y - nodeScreen.y) * (tapOffset.y - nodeScreen.y)
-
-                            if (distSq <= touchRadius * touchRadius) {
-                                clickedNode = node
+                            val dx = downPos.x - nodeScreen.x
+                            val dy = downPos.y - nodeScreen.y
+                            if ((dx * dx + dy * dy) <= (touchRadius * touchRadius)) {
+                                hitNode = node
                                 break
                             }
                         }
 
-                        if (clickedNode != null) {
-                            onNodeSelect(clickedNode.id)
+                        // Determine gesture target
+                        val activeNode = if (activeTool == ViewportTool.PAN) {
+                            null
+                        } else {
+                            hitNode ?: selectedNode
                         }
-                    }
-                }
-                .pointerInput(activeTool, cameraZoom, cameraPanX, cameraPanY, selectedNode, isGridSnapEnabled, gridSizePx) {
-                    // Interactive Dragging / Rotating / Scaling / Panning
-                    detectDragGestures(
-                        onDragStart = { startOffset ->
-                            val worldPos = screenToWorld(startOffset.x, startOffset.y)
-                            cursorWorldX = worldPos.x
-                            cursorWorldY = worldPos.y
-                            isDraggingNode = true
-                        },
-                        onDragEnd = {
-                            isDraggingNode = false
-                        },
-                        onDragCancel = {
-                            isDraggingNode = false
-                        },
-                        onDrag = { change, dragAmount ->
-                            change.consume()
-                            val curWorld = screenToWorld(change.position.x, change.position.y)
-                            cursorWorldX = curWorld.x
-                            cursorWorldY = curWorld.y
 
-                            when (activeTool) {
-                                ViewportTool.PAN -> {
-                                    cameraPanX += dragAmount.x
-                                    cameraPanY += dragAmount.y
-                                }
-                                ViewportTool.MOVE, ViewportTool.SELECT -> {
-                                    if (selectedNode != null) {
-                                        val deltaWorldX = dragAmount.x / cameraZoom
-                                        val deltaWorldY = dragAmount.y / cameraZoom
+                        var dragStartNodePos = Offset(activeNode?.posX ?: 0f, activeNode?.posY ?: 0f)
+                        var dragAccumulatedWorld = Offset.Zero
+                        val initialRotation = activeNode?.rotation ?: 0f
+                        val initialScale = activeNode?.scale ?: 1f
 
-                                        if (isGridSnapEnabled) {
-                                            val targetX = selectedNode.posX + deltaWorldX
-                                            val targetY = selectedNode.posY + deltaWorldY
-                                            val snappedX = (targetX / gridSizePx).roundToInt() * gridSizePx.toFloat()
-                                            val snappedY = (targetY / gridSizePx).roundToInt() * gridSizePx.toFloat()
-                                            onNodeExactPosChange(snappedX, snappedY)
-                                        } else {
-                                            onNodeDrag(deltaWorldX, deltaWorldY)
+                        if (hitNode != null && hitNode.id != selectedNode?.id) {
+                            onNodeSelect(hitNode.id)
+                        }
+
+                        isDraggingNode = (activeNode != null && activeTool != ViewportTool.PAN)
+                        var totalMovement = 0f
+
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val activePointers = event.changes.filter { it.pressed }
+                            if (activePointers.isEmpty()) break
+
+                            if (activePointers.size == 1) {
+                                val change = activePointers[0]
+                                val dragDelta = change.position - change.previousPosition
+                                totalMovement += sqrt(dragDelta.x * dragDelta.x + dragDelta.y * dragDelta.y)
+                                change.consume()
+
+                                val curWorld = screenToWorld(change.position.x, change.position.y)
+                                cursorWorldX = curWorld.x
+                                cursorWorldY = curWorld.y
+
+                                if (activeNode != null && activeTool != ViewportTool.PAN) {
+                                    when (activeTool) {
+                                        ViewportTool.MOVE, ViewportTool.SELECT -> {
+                                            val deltaWorldX = dragDelta.x / cameraZoom
+                                            val deltaWorldY = dragDelta.y / cameraZoom
+                                            dragAccumulatedWorld = Offset(
+                                                dragAccumulatedWorld.x + deltaWorldX,
+                                                dragAccumulatedWorld.y + deltaWorldY
+                                            )
+                                            val rawTargetX = dragStartNodePos.x + dragAccumulatedWorld.x
+                                            val rawTargetY = dragStartNodePos.y + dragAccumulatedWorld.y
+
+                                            if (isGridSnapEnabled) {
+                                                val snappedX = (rawTargetX / gridSizePx).roundToInt() * gridSizePx.toFloat()
+                                                val snappedY = (rawTargetY / gridSizePx).roundToInt() * gridSizePx.toFloat()
+                                                onNodeExactPosChange(snappedX, snappedY)
+                                            } else {
+                                                onNodeExactPosChange(rawTargetX, rawTargetY)
+                                            }
                                         }
-                                    } else {
-                                        // If no node selected, pan canvas
-                                        cameraPanX += dragAmount.x
-                                        cameraPanY += dragAmount.y
-                                    }
-                                }
-                                ViewportTool.ROTATE -> {
-                                    if (selectedNode != null) {
-                                        val nodeScreen = worldToScreen(selectedNode.posX, selectedNode.posY)
-                                        val prevAngle = atan2(
-                                            change.previousPosition.y - nodeScreen.y,
-                                            change.previousPosition.x - nodeScreen.x
-                                        ) * (180f / PI.toFloat())
-                                        val curAngle = atan2(
-                                            change.position.y - nodeScreen.y,
-                                            change.position.x - nodeScreen.x
-                                        ) * (180f / PI.toFloat())
-                                        val diff = curAngle - prevAngle
-                                        val newRot = (selectedNode.rotation + diff) % 360f
-                                        onNodeExactRotationChange(newRot)
-                                    }
-                                }
-                                ViewportTool.SCALE -> {
-                                    if (selectedNode != null) {
-                                        val nodeScreen = worldToScreen(selectedNode.posX, selectedNode.posY)
-                                        val prevDist = sqrt(
-                                            (change.previousPosition.x - nodeScreen.x) * (change.previousPosition.x - nodeScreen.x) +
-                                                    (change.previousPosition.y - nodeScreen.y) * (change.previousPosition.y - nodeScreen.y)
-                                        )
-                                        val curDist = sqrt(
-                                            (change.position.x - nodeScreen.x) * (change.position.x - nodeScreen.x) +
-                                                    (change.position.y - nodeScreen.y) * (change.position.y - nodeScreen.y)
-                                        )
-                                        if (prevDist > 1f) {
-                                            val scaleFactor = curDist / prevDist
-                                            val newScale = (selectedNode.scale * scaleFactor).coerceIn(0.2f, 6.0f)
-                                            onNodeExactScaleChange(newScale)
+                                        ViewportTool.ROTATE -> {
+                                            val nodeScreen = worldToScreen(activeNode.posX, activeNode.posY)
+                                            val curAngle = atan2(
+                                                change.position.y - nodeScreen.y,
+                                                change.position.x - nodeScreen.x
+                                            ) * (180f / PI.toFloat())
+                                            val startAngle = atan2(
+                                                downPos.y - nodeScreen.y,
+                                                downPos.x - nodeScreen.x
+                                            ) * (180f / PI.toFloat())
+                                            val newRot = ((initialRotation + (curAngle - startAngle)) % 360f + 360f) % 360f
+                                            onNodeExactRotationChange(newRot)
+                                        }
+                                        ViewportTool.SCALE -> {
+                                            val nodeScreen = worldToScreen(activeNode.posX, activeNode.posY)
+                                            val initialDist = sqrt(
+                                                (downPos.x - nodeScreen.x) * (downPos.x - nodeScreen.x) +
+                                                        (downPos.y - nodeScreen.y) * (downPos.y - nodeScreen.y)
+                                            )
+                                            val curDist = sqrt(
+                                                (change.position.x - nodeScreen.x) * (change.position.x - nodeScreen.x) +
+                                                        (change.position.y - nodeScreen.y) * (change.position.y - nodeScreen.y)
+                                            )
+                                            if (initialDist > 10f) {
+                                                val scaleRatio = (curDist / initialDist).coerceIn(0.1f, 10f)
+                                                val newScale = (initialScale * scaleRatio).coerceIn(0.2f, 6.0f)
+                                                onNodeExactScaleChange(newScale)
+                                            }
+                                        }
+                                        ViewportTool.PAN -> {
+                                            cameraPanX += dragDelta.x
+                                            cameraPanY += dragDelta.y
                                         }
                                     }
+                                } else {
+                                    // Free viewport panning
+                                    cameraPanX += dragDelta.x
+                                    cameraPanY += dragDelta.y
                                 }
+                            } else if (activePointers.size >= 2) {
+                                // Pinch to Zoom + Multi-finger Pan
+                                val p1 = activePointers[0]
+                                val p2 = activePointers[1]
+                                val prevP1 = p1.previousPosition
+                                val prevP2 = p2.previousPosition
+                                val curP1 = p1.position
+                                val curP2 = p2.position
+
+                                val prevDist = sqrt(
+                                    (prevP1.x - prevP2.x) * (prevP1.x - prevP2.x) +
+                                            (prevP1.y - prevP2.y) * (prevP1.y - prevP2.y)
+                                )
+                                val curDist = sqrt(
+                                    (curP1.x - curP2.x) * (curP1.x - curP2.x) +
+                                            (curP1.y - curP2.y) * (curP1.y - curP2.y)
+                                )
+
+                                val prevCenter = Offset((prevP1.x + prevP2.x) / 2f, (prevP1.y + prevP2.y) / 2f)
+                                val curCenter = Offset((curP1.x + curP2.x) / 2f, (curP1.y + curP2.y) / 2f)
+                                val panDelta = curCenter - prevCenter
+
+                                p1.consume()
+                                p2.consume()
+
+                                if (prevDist > 1f) {
+                                    val zoomFactor = curDist / prevDist
+                                    cameraZoom = (cameraZoom * zoomFactor).coerceIn(0.25f, 4.5f)
+                                }
+                                cameraPanX += panDelta.x
+                                cameraPanY += panDelta.y
                             }
                         }
-                    )
+
+                        isDraggingNode = false
+
+                        // Tap trigger
+                        if (totalMovement < 8f && hitNode != null) {
+                            onNodeSelect(hitNode.id)
+                        }
+                    }
                 }
         ) {
             // Draw 2D Infinite Cartesian Grid
@@ -479,7 +516,7 @@ fun StudioViewport(
                 onClick = { isGridVisible = !isGridVisible }
             )
 
-            // Grid Snap Toggle & Size Cycle (16 -> 32 -> 64)
+            // Grid Snap Toggle & Size Cycle (16 -> 32 -> 64 -> Free)
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(6.dp))
@@ -490,14 +527,16 @@ fun StudioViewport(
                         RoundedCornerShape(6.dp)
                     )
                     .clickable {
-                        if (isGridSnapEnabled) {
-                            gridSizePx = when (gridSizePx) {
-                                16 -> 32
-                                32 -> 64
-                                else -> 16
-                            }
-                        } else {
+                        if (!isGridSnapEnabled) {
                             isGridSnapEnabled = true
+                            gridSizePx = 32
+                        } else {
+                            when (gridSizePx) {
+                                16 -> gridSizePx = 32
+                                32 -> gridSizePx = 64
+                                64 -> isGridSnapEnabled = false
+                                else -> isGridSnapEnabled = false
+                            }
                         }
                     }
                     .padding(horizontal = 6.dp, vertical = 4.dp),
@@ -671,7 +710,7 @@ fun StudioViewport(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(
-                onClick = { cameraZoom = (cameraZoom - 0.15f).coerceIn(0.3f, 4.0f) },
+                onClick = { cameraZoom = (cameraZoom - 0.15f).coerceIn(0.25f, 4.5f) },
                 modifier = Modifier.size(24.dp)
             ) {
                 Icon(Icons.Default.Remove, contentDescription = "تصغير", tint = TextPrimary, modifier = Modifier.size(13.dp))
@@ -689,7 +728,7 @@ fun StudioViewport(
             )
 
             IconButton(
-                onClick = { cameraZoom = (cameraZoom + 0.15f).coerceIn(0.3f, 4.0f) },
+                onClick = { cameraZoom = (cameraZoom + 0.15f).coerceIn(0.25f, 4.5f) },
                 modifier = Modifier.size(24.dp)
             ) {
                 Icon(Icons.Default.Add, contentDescription = "تكبير", tint = TextPrimary, modifier = Modifier.size(13.dp))
@@ -697,7 +736,7 @@ fun StudioViewport(
         }
 
         // =========================================================================
-        // 5. Bottom-Center: Sleek Direct On-Canvas Floating Action Bar for Selected Node
+        // 5. Bottom-Center: Direct On-Canvas Floating Action Bar for Selected Node
         // =========================================================================
         AnimatedVisibility(
             visible = selectedNode != null && !isPlaying,
@@ -1034,7 +1073,7 @@ private fun DrawScope.draw2DCameraSafeFrame(
     centerY: Float,
     zoom: Float
 ) {
-    // 16:9 Frame Representation (e.g. 640x360 scaled)
+    // 16:9 Frame Representation
     val baseW = 540f * zoom
     val baseH = 304f * zoom
     val left = centerX - baseW / 2f
@@ -1083,7 +1122,6 @@ private fun DrawScope.draw2DSceneNode(
     simTick: Int,
     showColliders: Boolean
 ) {
-    // Simulation pulse offset
     var simYOffset = 0f
     if (isPlaying && node.hasPhysics) {
         simYOffset = sin(simTick * 0.1f + node.posX.toDouble() * 0.05).toFloat() * 6f * zoom
@@ -1173,10 +1211,6 @@ private fun DrawScope.draw2DSceneNode(
     }
 }
 
-// -----------------------------------------------------------------------------
-// Detailed 2D Procedural Sprites
-// -----------------------------------------------------------------------------
-
 private fun DrawScope.draw2DPlayerSprite(
     x: Float,
     y: Float,
@@ -1194,7 +1228,7 @@ private fun DrawScope.draw2DPlayerSprite(
         size = Size(bodyW * 1.4f, bodyH * 0.35f)
     )
 
-    // Knight Cape (Purple Gradient)
+    // Knight Cape
     val capePath = Path().apply {
         moveTo(x - bodyW * 0.4f, y - bodyH * 0.2f)
         lineTo(x - bodyW * 0.8f, y + bodyH * 0.45f)
@@ -1203,7 +1237,7 @@ private fun DrawScope.draw2DPlayerSprite(
     }
     drawPath(capePath, color = Color(0xFF6D28D9))
 
-    // Armor Body (Studio Purple / Titanium)
+    // Armor Body
     drawRoundRect(
         color = StudioPurple,
         topLeft = Offset(x - bodyW / 2f, y - bodyH / 2f),
@@ -1225,7 +1259,7 @@ private fun DrawScope.draw2DPlayerSprite(
         size = Size(bodyW * 0.8f, 4f * scale)
     )
 
-    // Knight Visor / Eyes (Cyan Glow)
+    // Knight Visor / Eyes
     drawRoundRect(
         color = StudioBlue,
         topLeft = Offset(x - bodyW * 0.3f, y - bodyH * 0.35f),
@@ -1233,7 +1267,7 @@ private fun DrawScope.draw2DPlayerSprite(
         cornerRadius = CornerRadius(2f, 2f)
     )
 
-    // Glowing Sword (Held on Right)
+    // Glowing Sword
     drawLine(
         color = StudioBlue,
         start = Offset(x + bodyW * 0.6f, y - bodyH * 0.4f),
@@ -1260,7 +1294,7 @@ private fun DrawScope.draw2DEnemySprite(
         size = Size(bodyW * 1.2f, bodyH * 0.3f)
     )
 
-    // Hostile Body (Fiery Red)
+    // Hostile Body
     drawRoundRect(
         color = StudioRed,
         topLeft = Offset(x - bodyW / 2f, y - bodyH / 2f),
@@ -1343,7 +1377,6 @@ private fun DrawScope.draw2DPointLight(
     simTick: Int
 ) {
     val radius = 60f * scale
-    // Radial Glow Aura
     drawCircle(
         brush = Brush.radialGradient(
             colors = listOf(StudioYellow.copy(alpha = 0.5f), StudioOrange.copy(alpha = 0.2f), Color.Transparent),
@@ -1353,10 +1386,8 @@ private fun DrawScope.draw2DPointLight(
         radius = radius,
         center = Offset(x, y)
     )
-
-    // Bulb Icon Center
-    drawCircle(StudioYellow, radius = 7f * scale, center = Offset(x, y))
-    drawCircle(Color.White, radius = 4f * scale, center = Offset(x, y))
+    drawCircle(color = StudioYellow, radius = 6f * scale, center = Offset(x, y))
+    drawCircle(color = Color.White, radius = 3f * scale, center = Offset(x, y))
 }
 
 private fun DrawScope.draw2DParticleEmitter(
@@ -1365,16 +1396,30 @@ private fun DrawScope.draw2DParticleEmitter(
     scale: Float,
     simTick: Int
 ) {
-    // Center Emitter
-    drawCircle(StudioPink, radius = 6f * scale, center = Offset(x, y))
+    val baseRadius = 14f * scale
+    drawCircle(
+        color = StudioPurpleLight.copy(alpha = 0.3f),
+        radius = baseRadius * 1.5f,
+        center = Offset(x, y)
+    )
+    drawCircle(
+        color = StudioPurpleLight,
+        radius = baseRadius,
+        center = Offset(x, y),
+        style = Stroke(1.5f)
+    )
 
-    // Orbiting Glowing Sparks
-    for (i in 0..4) {
-        val angle = (simTick * 3f + i * 72f) * (PI.toFloat() / 180f)
-        val dist = (16f + (i % 2) * 8f) * scale
-        val px = x + cos(angle) * dist
-        val py = y + sin(angle) * dist
-        drawCircle(StudioPurpleLight, radius = 2.5f * scale, center = Offset(px, py))
+    val sparkColors = listOf(StudioPurpleLight, StudioBlue, StudioGreen, StudioYellow)
+    for (i in 0..5) {
+        val angle = (simTick * 3 + i * 60) * (PI / 180.0)
+        val dist = (12f + (simTick + i * 15) % 24) * scale
+        val sx = x + (cos(angle) * dist).toFloat()
+        val sy = y + (sin(angle) * dist).toFloat()
+        drawCircle(
+            color = sparkColors[i % sparkColors.size],
+            radius = 2.5f * scale,
+            center = Offset(sx, sy)
+        )
     }
 }
 
@@ -1383,22 +1428,31 @@ private fun DrawScope.draw2DCameraIcon(
     y: Float,
     scale: Float
 ) {
-    val camW = 28f * scale
-    val camH = 18f * scale
+    val camW = 32f * scale
+    val camH = 22f * scale
 
     drawRoundRect(
         color = StudioBlue,
         topLeft = Offset(x - camW / 2f, y - camH / 2f),
         size = Size(camW, camH),
-        cornerRadius = CornerRadius(3f, 3f)
+        cornerRadius = CornerRadius(4f * scale, 4f * scale)
+    )
+    drawCircle(
+        color = Color.White,
+        radius = 6f * scale,
+        center = Offset(x, y)
+    )
+    drawCircle(
+        color = StudioPurpleDark,
+        radius = 3.5f * scale,
+        center = Offset(x, y)
     )
 
-    // Lens Projection Cone
     val lensPath = Path().apply {
-        moveTo(x + camW / 2f, y - camH * 0.3f)
-        lineTo(x + camW * 0.85f, y - camH * 0.6f)
-        lineTo(x + camW * 0.85f, y + camH * 0.6f)
-        lineTo(x + camW / 2f, y + camH * 0.3f)
+        moveTo(x + camW / 2f, y - 4f * scale)
+        lineTo(x + camW / 2f + 8f * scale, y - 8f * scale)
+        lineTo(x + camW / 2f + 8f * scale, y + 8f * scale)
+        lineTo(x + camW / 2f, y + 4f * scale)
         close()
     }
     drawPath(lensPath, color = StudioBlue)
@@ -1411,30 +1465,37 @@ private fun DrawScope.draw2DGenericSprite(
     name: String,
     colorHex: String
 ) {
-    val sizePx = 28f * scale
-    val parsedColor = try {
+    val col = try {
         Color(android.graphics.Color.parseColor(colorHex))
     } catch (e: Exception) {
-        StudioPurpleLight
+        StudioPurple
     }
 
+    val boxSize = 34f * scale
+
     drawRoundRect(
-        color = parsedColor,
-        topLeft = Offset(x - sizePx / 2f, y - sizePx / 2f),
-        size = Size(sizePx, sizePx),
+        color = col.copy(alpha = 0.85f),
+        topLeft = Offset(x - boxSize / 2f, y - boxSize / 2f),
+        size = Size(boxSize, boxSize),
         cornerRadius = CornerRadius(6f * scale, 6f * scale)
     )
     drawRoundRect(
-        color = Color.White.copy(alpha = 0.5f),
-        topLeft = Offset(x - sizePx / 2f, y - sizePx / 2f),
-        size = Size(sizePx, sizePx),
+        color = Color.White.copy(alpha = 0.7f),
+        topLeft = Offset(x - boxSize / 2f, y - boxSize / 2f),
+        size = Size(boxSize, boxSize),
         cornerRadius = CornerRadius(6f * scale, 6f * scale),
-        style = Stroke(1f)
+        style = Stroke(1.2f)
+    )
+
+    drawCircle(
+        color = Color.White.copy(alpha = 0.8f),
+        radius = 4f * scale,
+        center = Offset(x, y)
     )
 }
 
 // -----------------------------------------------------------------------------
-// Transform Gizmo System (Move, Rotate, Scale)
+// 2D Transform Gizmo (Move / Rotate / Scale)
 // -----------------------------------------------------------------------------
 
 private fun DrawScope.draw2DTransformGizmo(
@@ -1444,7 +1505,7 @@ private fun DrawScope.draw2DTransformGizmo(
     zoom: Float,
     isDragging: Boolean
 ) {
-    val gizmoLen = 50f * zoom.coerceIn(0.9f, 1.3f)
+    val gizmoLen = 52f * zoom.coerceIn(0.8f, 1.4f)
     val redX = Color(0xFFEF4444)
     val greenY = Color(0xFF22C55E)
 
@@ -1458,7 +1519,6 @@ private fun DrawScope.draw2DTransformGizmo(
                 strokeWidth = 2.5f,
                 cap = StrokeCap.Round
             )
-            // X Arrowhead
             val xHead = Path().apply {
                 moveTo(screenPos.x + gizmoLen + 6f, screenPos.y)
                 lineTo(screenPos.x + gizmoLen - 4f, screenPos.y - 4f)
@@ -1475,7 +1535,6 @@ private fun DrawScope.draw2DTransformGizmo(
                 strokeWidth = 2.5f,
                 cap = StrokeCap.Round
             )
-            // Y Arrowhead
             val yHead = Path().apply {
                 moveTo(screenPos.x, screenPos.y + gizmoLen + 6f)
                 lineTo(screenPos.x - 4f, screenPos.y + gizmoLen - 4f)
@@ -1502,7 +1561,6 @@ private fun DrawScope.draw2DTransformGizmo(
                     pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 4f), 0f)
                 )
             )
-            // Active Handle dot
             val rad = node.rotation * (PI.toFloat() / 180f)
             val hx = screenPos.x + cos(rad) * ringRadius
             val hy = screenPos.y + sin(rad) * ringRadius
@@ -1510,7 +1568,6 @@ private fun DrawScope.draw2DTransformGizmo(
             drawCircle(StudioPurple, radius = 3.5f, center = Offset(hx, hy))
         }
         ViewportTool.SCALE -> {
-            // Scale X Axis with Box Handle
             drawLine(
                 color = redX,
                 start = screenPos,
@@ -1523,7 +1580,6 @@ private fun DrawScope.draw2DTransformGizmo(
                 size = Size(8f, 8f)
             )
 
-            // Scale Y Axis with Box Handle
             drawLine(
                 color = greenY,
                 start = screenPos,
@@ -1536,9 +1592,7 @@ private fun DrawScope.draw2DTransformGizmo(
                 size = Size(8f, 8f)
             )
         }
-        ViewportTool.PAN -> {
-            // No gizmo overlay in pan mode
-        }
+        ViewportTool.PAN -> {}
     }
 }
 
@@ -1557,10 +1611,8 @@ private fun DrawScope.draw2DRulers(
     val tickColor = Color(0x44FFFFFF)
     val rulerThickness = 14f
 
-    // Top Ruler Background
     drawRect(color = rulerColor, topLeft = Offset(0f, 0f), size = Size(width, rulerThickness))
 
-    // Top Ruler Ticks
     val step = 50f * zoom
     if (step > 15f) {
         val startX = centerX % step
@@ -1576,10 +1628,8 @@ private fun DrawScope.draw2DRulers(
         }
     }
 
-    // Left Ruler Background
     drawRect(color = rulerColor, topLeft = Offset(0f, 0f), size = Size(rulerThickness, height))
 
-    // Left Ruler Ticks
     if (step > 15f) {
         val startY = centerY % step
         var y = startY
