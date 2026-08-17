@@ -77,7 +77,7 @@ fun OpenProjectDialog(
             root.listFiles()?.filter { it.isDirectory }?.forEach { list.add(it.name) }
         }
         if (list.isEmpty()) {
-            listOf("CyberRunner_Project", "SpaceInvaders_Korva", "Physics_Lab_v1", "NeonCity_3D")
+            listOf("CyberRunner_2D", "SpaceInvaders_Korva", "Physics_Lab_2D", "NeonCity_2D_Pixel")
         } else {
             list
         }

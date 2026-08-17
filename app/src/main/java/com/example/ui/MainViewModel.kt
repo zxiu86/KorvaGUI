@@ -492,10 +492,66 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteSelectedNode() {
         val currentId = _selectedNodeId.value ?: return
-        val nodeName = _sceneNodes.value.find { it.id == currentId }?.name ?: ""
-        _sceneNodes.update { it.filterNot { node -> node.id == currentId } }
-        _selectedNodeId.value = _sceneNodes.value.firstOrNull()?.id
+        deleteNodeById(currentId)
+    }
+
+    fun deleteNodeById(nodeId: String) {
+        val nodeName = _sceneNodes.value.find { it.id == nodeId }?.name ?: ""
+        _sceneNodes.update { it.filterNot { node -> node.id == nodeId } }
+        if (_selectedNodeId.value == nodeId) {
+            _selectedNodeId.value = _sceneNodes.value.firstOrNull()?.id
+        }
         addLog(LogLevel.WARN, "تم حذف الكائن: $nodeName")
+    }
+
+    fun duplicateNode(nodeId: String) {
+        val original = _sceneNodes.value.find { it.id == nodeId } ?: return
+        val duplicated = original.copy(
+            id = "node_${System.currentTimeMillis() % 100000}",
+            name = "${original.name}_Copy",
+            posX = original.posX + 30f,
+            posY = original.posY + 30f
+        )
+        _sceneNodes.update { it + duplicated }
+        _selectedNodeId.value = duplicated.id
+        addLog(LogLevel.SUCCESS, "تم استنساخ الكائن: ${duplicated.name}")
+    }
+
+    fun bringNodeToFront(nodeId: String) {
+        val node = _sceneNodes.value.find { it.id == nodeId } ?: return
+        _sceneNodes.update { list ->
+            list.filterNot { it.id == nodeId } + node
+        }
+        addLog(LogLevel.INFO, "تم رفع الكائن للواجهة: ${node.name}")
+    }
+
+    fun sendNodeToBack(nodeId: String) {
+        val node = _sceneNodes.value.find { it.id == nodeId } ?: return
+        _sceneNodes.update { list ->
+            listOf(node) + list.filterNot { it.id == nodeId }
+        }
+        addLog(LogLevel.INFO, "تم إرسال الكائن للخلف: ${node.name}")
+    }
+
+    fun centerNode(nodeId: String) {
+        _sceneNodes.update { list ->
+            list.map { node ->
+                if (node.id == nodeId) {
+                    node.copy(posX = 0f, posY = 0f)
+                } else node
+            }
+        }
+        addLog(LogLevel.INFO, "تم وضع الكائن في نقطة المركز (0,0)")
+    }
+
+    fun toggleNodePhysics(nodeId: String) {
+        _sceneNodes.update { list ->
+            list.map { node ->
+                if (node.id == nodeId) {
+                    node.copy(hasPhysics = !node.hasPhysics)
+                } else node
+            }
+        }
     }
 
     fun toggleNodeVisibility(nodeId: String) {

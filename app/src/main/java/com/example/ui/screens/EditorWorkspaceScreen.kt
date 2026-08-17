@@ -232,13 +232,14 @@ fun EditorWorkspaceScreen(
                             .weight(1f)
                             .fillMaxHeight()
                     ) {
-                        // Procedural Viewport Canvas
+                        // Procedural 2D Viewport Canvas
                         StudioViewport(
                             selectedNode = selectedNode,
                             allNodes = uiState.sceneNodes,
                             isHierarchyVisible = isHierarchyVisible && !isFullscreen,
                             isInspectorVisible = isInspectorVisible && !isFullscreen,
                             isTimelineVisible = isTimelineVisible && !isFullscreen,
+                            isPlaying = uiState.isSimulationPlaying,
                             onRestoreHierarchy = {
                                 isFullscreen = false
                                 isHierarchyVisible = true
@@ -251,8 +252,35 @@ fun EditorWorkspaceScreen(
                                 isFullscreen = false
                                 isTimelineVisible = true
                             },
+                            onNodeSelect = { nodeId ->
+                                viewModel.selectSceneNode(nodeId)
+                            },
                             onNodeDrag = { dx, dy ->
                                 viewModel.updateSelectedNodePos(dx, dy)
+                            },
+                            onNodeExactPosChange = { x, y ->
+                                viewModel.setSelectedNodeExactPos(x, y)
+                            },
+                            onNodeExactScaleChange = { scale ->
+                                viewModel.setSelectedNodeExactScale(scale)
+                            },
+                            onNodeExactRotationChange = { rot ->
+                                viewModel.setSelectedNodeExactRotation(rot)
+                            },
+                            onNodeDuplicate = { nodeId ->
+                                viewModel.duplicateNode(nodeId)
+                            },
+                            onNodeDelete = { nodeId ->
+                                viewModel.deleteNodeById(nodeId)
+                            },
+                            onNodeBringToFront = { nodeId ->
+                                viewModel.bringNodeToFront(nodeId)
+                            },
+                            onNodeSendToBack = { nodeId ->
+                                viewModel.sendNodeToBack(nodeId)
+                            },
+                            onNodeCenter = { nodeId ->
+                                viewModel.centerNode(nodeId)
                             },
                             modifier = Modifier
                                 .weight(1f)

@@ -27,8 +27,8 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Gamepad
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Science
-import androidx.compose.material.icons.filled.ViewInAr
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -92,21 +92,27 @@ fun NewProjectDialog(
     val templates = remember {
         listOf(
             ProjectTemplate(
-                title = "2D Game Engine",
-                description = "محرك ألعاب ثنائي الأبعاد مع دعم فيزياء وتصادمات",
+                title = "2D Platformer Engine",
+                description = "محرك منصات ثنائي الأبعاد مع دعم فيزياء وتصادمات وتجميع العملات",
                 icon = Icons.Default.Gamepad,
                 color = StudioPurple
             ),
             ProjectTemplate(
-                title = "3D Scene Studio",
-                description = "مشهد ثلاثي الأبعاد مع إضاءة ديناميكية وكاميرا",
-                icon = Icons.Default.ViewInAr,
+                title = "2D Top-Down RPG",
+                description = "مشهد مغامرة واستكشاف 2D من الأعلى مع تحكم بالبطل ونظام خرائط",
+                icon = Icons.Default.Layers,
                 color = StudioPurpleLight
             ),
             ProjectTemplate(
-                title = "Physics Sandbox",
-                description = "مختبر محاكاة الجاذبية والأجسام التفاعلية",
+                title = "2D Physics Sandbox",
+                description = "مختبر محاكاة الأجسام والجاذبية والارتدادات ثنائية الأبعاد",
                 icon = Icons.Default.Science,
+                color = StudioPurple
+            ),
+            ProjectTemplate(
+                title = "2D Pixel Art World",
+                description = "مشهد بكسل آرت مع إضاءة ديناميكية 2D وجزيئات وتأثيرات بصرية",
+                icon = Icons.Default.AutoFixHigh,
                 color = StudioPurpleLight
             )
         )

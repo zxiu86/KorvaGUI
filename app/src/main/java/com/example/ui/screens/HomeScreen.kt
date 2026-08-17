@@ -266,7 +266,7 @@ fun HomeScreen(
                                         fontWeight = FontWeight.SemiBold
                                     )
                                     Text(
-                                        text = "2D / 3D Engine Ready",
+                                        text = "Pure 2D Engine Ready",
                                         color = TextMuted,
                                         fontSize = 7.sp
                                     )

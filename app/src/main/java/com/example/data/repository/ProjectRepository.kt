@@ -93,10 +93,11 @@ class ProjectRepository(
         }
 
         val color = when (templateType) {
-            "2D Game Engine" -> "#00E5C9"
-            "3D Scene Studio" -> "#38BDF8"
-            "Physics Sandbox" -> "#FBBF24"
-            else -> "#A855F7"
+            "2D Platformer Engine" -> "#8B5CF6"
+            "2D Top-Down RPG" -> "#A78BFA"
+            "2D Physics Sandbox" -> "#FBBF24"
+            "2D Pixel Art World" -> "#22C55E"
+            else -> "#8B5CF6"
         }
 
         val project = ProjectEntity(
@@ -104,12 +105,12 @@ class ProjectRepository(
             path = projectFolder.absolutePath,
             templateType = templateType,
             lastModified = System.currentTimeMillis(),
-            fileSize = "4.2 MB",
+            fileSize = "4.8 MB",
             version = "v1.0.0",
-            description = "مشروع تفاعلي مبني بواسطة محرك Korva Engine",
+            description = "مشروع تفاعلي 2D مبني بواسطة محرك Korva Studio",
             colorHex = color,
-            scenesCount = if (templateType.contains("3D")) 1 else 2,
-            scriptsCount = 4
+            scenesCount = 3,
+            scriptsCount = 5
         )
 
         val generatedId = projectDao.insertProject(project)
