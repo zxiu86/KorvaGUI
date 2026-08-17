@@ -10,53 +10,14 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Audiotrack
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.FontDownload
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -67,6 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.ProjectEntity
+import com.example.engine.interfaces.PropertyValue
 import com.example.model.LogLevel
 import com.example.model.NodeType
 import com.example.ui.MainUiState
@@ -74,28 +36,26 @@ import com.example.ui.MainViewModel
 import com.example.ui.components.StudioBottomNav
 import com.example.ui.components.StudioGlobalTab
 import com.example.ui.components.StudioHeader
-import com.example.ui.components.StudioHierarchyPanel
-import com.example.ui.components.StudioInspector
-import com.example.ui.components.StudioTimeline
 import com.example.ui.components.StudioViewport
-import com.example.ui.theme.EngineBackground
-import com.example.ui.theme.EngineCardBg
-import com.example.ui.theme.EngineSurface
-import com.example.ui.theme.StudioBlue
-import com.example.ui.theme.StudioBorder
-import com.example.ui.theme.StudioGreen
-import com.example.ui.theme.StudioOrange
-import com.example.ui.theme.StudioPink
-import com.example.ui.theme.StudioPurple
-import com.example.ui.theme.StudioPurpleDark
-import com.example.ui.theme.StudioPurpleLight
-import com.example.ui.theme.StudioRed
-import com.example.ui.theme.StudioYellow
-import com.example.ui.theme.TextMuted
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.panels.AnimationTimelinePanel
+import com.example.ui.panels.AssetBrowserPanel
+import com.example.ui.panels.LayerManagerPanel
+import com.example.ui.panels.ObjectBrowserPanel
+import com.example.ui.panels.ObjectInspectorPanel
+import com.example.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+enum class LeftPanelMode {
+    OBJECTS,
+    LAYERS
+}
+
+enum class BottomPanelMode {
+    TIMELINE,
+    ASSETS,
+    CONSOLE
+}
 
 @Composable
 fun EditorWorkspaceScreen(
@@ -107,13 +67,16 @@ fun EditorWorkspaceScreen(
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var globalTab by remember { mutableStateOf(StudioGlobalTab.EDITOR) }
-    var isTimelinePlaying by remember { mutableStateOf(false) }
 
     // Collapsible Dock Panel Visibility States
     var isHierarchyVisible by remember { mutableStateOf(true) }
     var isInspectorVisible by remember { mutableStateOf(true) }
     var isTimelineVisible by remember { mutableStateOf(true) }
     var isFullscreen by remember { mutableStateOf(false) }
+
+    // Sub-panel mode switches
+    var leftPanelMode by remember { mutableStateOf(LeftPanelMode.OBJECTS) }
+    var bottomPanelMode by remember { mutableStateOf(BottomPanelMode.TIMELINE) }
 
     val selectedNode = uiState.sceneNodes.find { it.id == uiState.selectedNodeId }
         ?: uiState.sceneNodes.firstOrNull()
@@ -140,17 +103,19 @@ fun EditorWorkspaceScreen(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // ========================================================
-            // 1. Studio Header Top Bar
+            // 1. Studio Header Top Bar (With Undo/Redo & Transport)
             // ========================================================
             StudioHeader(
-                projectName = project.name.ifBlank { "Dark Village" },
-                projectType = project.templateType.ifBlank { "2D Project" },
+                projectName = project.name.ifBlank { "Korva Game" },
+                projectType = project.templateType.ifBlank { "2D Engine" },
                 isPlaying = uiState.isSimulationPlaying,
                 isPaused = false,
                 isHierarchyVisible = isHierarchyVisible && !isFullscreen,
                 isInspectorVisible = isInspectorVisible && !isFullscreen,
                 isTimelineVisible = isTimelineVisible && !isFullscreen,
                 isFullscreen = isFullscreen,
+                canUndo = uiState.canUndo,
+                canRedo = uiState.canRedo,
                 availableProjects = uiState.projects,
                 onToggleHierarchy = {
                     if (isFullscreen) isFullscreen = false
@@ -167,22 +132,20 @@ fun EditorWorkspaceScreen(
                 onToggleFullscreen = {
                     isFullscreen = !isFullscreen
                 },
-                onPlayClick = {
-                    viewModel.toggleSimulation()
-                },
-                onPauseClick = {
-                    viewModel.toggleSimulation()
-                },
+                onUndoClick = { viewModel.undo() },
+                onRedoClick = { viewModel.redo() },
+                onPlayClick = { viewModel.toggleSimulation() },
+                onPauseClick = { viewModel.toggleSimulation() },
                 onStopClick = {
                     if (uiState.isSimulationPlaying) viewModel.toggleSimulation()
                 },
                 onBuildApkClick = {
                     globalTab = StudioGlobalTab.BUILD
-                    viewModel.addLog(LogLevel.INFO, "⚙️ بدء عملية بناء ملف APK للمشروع...")
+                    viewModel.addLog(LogLevel.INFO, "⚙️ بدء تجميع ملفات ومكتبات المشروع...")
                     coroutineScope.launch {
                         delay(500)
-                        viewModel.addLog(LogLevel.SUCCESS, "✓ تم فحص وتجميع المشاهد والمكتبات بنجاح!")
-                        snackbarHostState.showSnackbar("جاري بناء وتجميع حزمة APK للمشروع...")
+                        viewModel.addLog(LogLevel.SUCCESS, "✓ تم فحص المشاهد والموارد بنجاح!")
+                        snackbarHostState.showSnackbar("جاري تصدير اللعبة بنجاح...")
                     }
                 },
                 onSaveClick = {
@@ -200,39 +163,112 @@ fun EditorWorkspaceScreen(
             )
 
             // ========================================================
-            // 2. Main Studio 3-Column Split (Dynamic Collapsible Layout)
+            // 2. Main Studio 3-Column Split (Touch-First Dock)
             // ========================================================
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
             ) {
-                // Primary Editor Workspace
                 Row(modifier = Modifier.fillMaxSize()) {
-                    // Left Panel: Objects & Layers (Collapsible)
+                    // ----------------------------------------------------
+                    // Left Panel: Objects Browser / Layer Manager Switcher
+                    // ----------------------------------------------------
                     AnimatedVisibility(
                         visible = isHierarchyVisible && !isFullscreen,
                         enter = expandHorizontally() + fadeIn(),
                         exit = shrinkHorizontally() + fadeOut()
                     ) {
-                        StudioHierarchyPanel(
-                            sceneNodes = uiState.sceneNodes,
-                            selectedNodeId = selectedNode?.id,
-                            onSelectNode = { viewModel.selectSceneNode(it) },
-                            onAddNode = { name, type -> viewModel.addSceneNode(name, type) },
-                            onDeleteNode = { viewModel.deleteSelectedNode() },
-                            onToggleNodeVisibility = { viewModel.toggleNodeVisibility(it) },
-                            onCollapse = { isHierarchyVisible = false }
-                        )
+                        Column(
+                            modifier = Modifier
+                                .width(220.dp)
+                                .fillMaxHeight()
+                                .background(EngineSurface)
+                                .border(width = 0.8.dp, color = StudioBorder)
+                        ) {
+                            // Left Panel Mode Tab Selector
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(EngineBackground)
+                                    .padding(4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(if (leftPanelMode == LeftPanelMode.OBJECTS) StudioPurple else Color.Transparent)
+                                        .clickable { leftPanelMode = LeftPanelMode.OBJECTS }
+                                        .padding(vertical = 4.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "الكائنات (Objects)",
+                                        color = if (leftPanelMode == LeftPanelMode.OBJECTS) Color.White else TextSecondary,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(if (leftPanelMode == LeftPanelMode.LAYERS) StudioPurple else Color.Transparent)
+                                        .clickable { leftPanelMode = LeftPanelMode.LAYERS }
+                                        .padding(vertical = 4.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "الطبقات (Layers)",
+                                        color = if (leftPanelMode == LeftPanelMode.LAYERS) Color.White else TextSecondary,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
+                            val layers = uiState.activeScene?.layers ?: emptyList()
+
+                            if (leftPanelMode == LeftPanelMode.OBJECTS) {
+                                ObjectBrowserPanel(
+                                    layers = layers,
+                                    selectedObjectId = uiState.selectedObject?.id ?: uiState.selectedNodeId,
+                                    onSelectObject = { viewModel.selectKorvaObject(it) },
+                                    onCreateObject = { name, layerId -> viewModel.createKorvaObject(name, layerId) },
+                                    onDuplicateObject = { viewModel.duplicateNode(it) },
+                                    onDeleteObject = { viewModel.deleteKorvaObject(it) },
+                                    onToggleObjectVisibility = { viewModel.toggleNodeVisibility(it) },
+                                    onToggleObjectLock = { /* Handled via command */ },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            } else {
+                                LayerManagerPanel(
+                                    layers = layers,
+                                    selectedLayerId = uiState.selectedLayerId,
+                                    onSelectLayer = { viewModel.selectKorvaLayer(it) },
+                                    onCreateLayer = { viewModel.createKorvaLayer(it) },
+                                    onDeleteLayer = { viewModel.deleteKorvaLayer(it) },
+                                    onToggleLayerVisibility = { viewModel.toggleKorvaLayerVisibility(it) },
+                                    onToggleLayerLock = { viewModel.toggleKorvaLayerLock(it) },
+                                    onMoveLayerUp = { viewModel.moveKorvaLayerUp(it) },
+                                    onMoveLayerDown = { viewModel.moveKorvaLayerDown(it) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
                     }
 
-                    // Center Column: 2D Scene Viewport + Bottom Animation Timeline
+                    // ----------------------------------------------------
+                    // Center Column: 2D Scene Viewport + Bottom Tools
+                    // ----------------------------------------------------
                     Column(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
                     ) {
-                        // Procedural 2D Viewport Canvas
+                        // 2D Viewport Canvas
                         StudioViewport(
                             selectedNode = selectedNode,
                             allNodes = uiState.sceneNodes,
@@ -253,7 +289,7 @@ fun EditorWorkspaceScreen(
                                 isTimelineVisible = true
                             },
                             onNodeSelect = { nodeId ->
-                                viewModel.selectSceneNode(nodeId)
+                                viewModel.selectKorvaObject(nodeId)
                             },
                             onNodeDrag = { dx, dy ->
                                 viewModel.updateSelectedNodePos(dx, dy)
@@ -271,7 +307,7 @@ fun EditorWorkspaceScreen(
                                 viewModel.duplicateNode(nodeId)
                             },
                             onNodeDelete = { nodeId ->
-                                viewModel.deleteNodeById(nodeId)
+                                viewModel.deleteKorvaObject(nodeId)
                             },
                             onNodeBringToFront = { nodeId ->
                                 viewModel.bringNodeToFront(nodeId)
@@ -287,52 +323,144 @@ fun EditorWorkspaceScreen(
                                 .fillMaxWidth()
                         )
 
-                        // Animation Timeline (Collapsible)
+                        // Bottom Panels (Timeline / Assets / Console)
                         AnimatedVisibility(
                             visible = isTimelineVisible && !isFullscreen,
                             enter = expandVertically() + fadeIn(),
                             exit = shrinkVertically() + fadeOut()
                         ) {
-                            StudioTimeline(
-                                isPlaying = isTimelinePlaying,
-                                onTogglePlay = { isTimelinePlaying = !isTimelinePlaying },
-                                onCollapse = { isTimelineVisible = false }
-                            )
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(EngineSurface)
+                            ) {
+                                // Bottom Mode Tab Switcher
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(EngineBackground)
+                                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    listOf(
+                                        BottomPanelMode.TIMELINE to "التحريك (Timeline)",
+                                        BottomPanelMode.ASSETS to "الملفات (Assets)",
+                                        BottomPanelMode.CONSOLE to "السجل (Console)"
+                                    ).forEach { (mode, title) ->
+                                        val isChosen = bottomPanelMode == mode
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(if (isChosen) StudioPurpleDark else Color.Transparent)
+                                                .border(0.6.dp, if (isChosen) StudioPurpleLight else Color.Transparent, RoundedCornerShape(4.dp))
+                                                .clickable { bottomPanelMode = mode }
+                                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = title,
+                                                color = if (isChosen) Color.White else TextMuted,
+                                                fontSize = 9.5.sp,
+                                                fontWeight = if (isChosen) FontWeight.Bold else FontWeight.Normal
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.weight(1f))
+                                    IconButton(
+                                        onClick = { isTimelineVisible = false },
+                                        modifier = Modifier.size(20.dp)
+                                    ) {
+                                        Icon(Icons.Default.Close, contentDescription = "Close", tint = TextMuted, modifier = Modifier.size(12.dp))
+                                    }
+                                }
+
+                                when (bottomPanelMode) {
+                                    BottomPanelMode.TIMELINE -> {
+                                        AnimationTimelinePanel(modifier = Modifier.fillMaxWidth())
+                                    }
+                                    BottomPanelMode.ASSETS -> {
+                                        AssetBrowserPanel(
+                                            assets = uiState.engineProject?.assets ?: emptyList(),
+                                            onSelectAsset = {},
+                                            onImportAsset = {
+                                                viewModel.addLog(LogLevel.INFO, "تم فتح نافذة استيراد الموارد")
+                                            },
+                                            onDeleteAsset = {},
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    }
+                                    BottomPanelMode.CONSOLE -> {
+                                        LazyColumn(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(90.dp)
+                                                .background(EngineBackground)
+                                                .padding(6.dp),
+                                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                                        ) {
+                                            items(uiState.engineLogs) { log ->
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Text(log.timestamp, color = TextMuted, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Text(
+                                                        text = log.message,
+                                                        color = when (log.level) {
+                                                            LogLevel.SUCCESS -> StudioGreen
+                                                            LogLevel.WARN -> StudioYellow
+                                                            LogLevel.ERROR -> StudioRed
+                                                            else -> TextPrimary
+                                                        },
+                                                        fontSize = 9.5.sp
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
 
-                    // Right Panel: Inspector & Components (Collapsible)
+                    // ----------------------------------------------------
+                    // Right Panel: Dynamic Cards-Based Inspector
+                    // ----------------------------------------------------
                     AnimatedVisibility(
                         visible = isInspectorVisible && !isFullscreen,
                         enter = expandHorizontally() + fadeIn(),
                         exit = shrinkHorizontally() + fadeOut()
                     ) {
-                        StudioInspector(
-                            selectedNode = selectedNode,
-                            onUpdateName = { viewModel.setSelectedNodeName(it) },
-                            onUpdatePos = { x, y -> viewModel.setSelectedNodeExactPos(x, y) },
-                            onUpdateScale = { viewModel.setSelectedNodeExactScale(it) },
-                            onUpdateRotation = { viewModel.setSelectedNodeExactRotation(it) },
-                            onUpdateColor = { viewModel.setSelectedNodeColor(it) },
-                            onUpdatePhysics = { enabled, mass -> viewModel.setSelectedNodePhysics(enabled, mass) },
-                            onCollapse = { isInspectorVisible = false }
+                        ObjectInspectorPanel(
+                            selectedObject = uiState.selectedObject,
+                            onPropertyValueChanged = { secId, propId, newVal ->
+                                viewModel.setKorvaProperty(secId, propId, newVal)
+                            },
+                            onToggleSectionEnabled = { secId, enabled ->
+                                viewModel.toggleKorvaSectionEnabled(secId, enabled)
+                            },
+                            onRemoveSection = { secId ->
+                                viewModel.removeKorvaSection(secId)
+                            },
+                            onAddSection = { secType ->
+                                viewModel.addKorvaSection(secType)
+                            },
+                            onRenameObject = { newName ->
+                                viewModel.renameKorvaObject(newName)
+                            },
+                            onToggleObjectVisibility = {
+                                uiState.selectedObject?.let { viewModel.toggleNodeVisibility(it.id) }
+                            },
+                            onToggleObjectLock = {
+                                /* Object lock toggle */
+                            },
+                            modifier = Modifier.width(260.dp)
                         )
                     }
                 }
 
                 // ========================================================
-                // Overlays for Bottom Tabs (Assets, Build/Console, Settings)
+                // Overlays for Bottom Tabs (Build/Console, Settings)
                 // ========================================================
-                if (globalTab == StudioGlobalTab.ASSETS) {
-                    AssetBrowserOverlay(
-                        onAddSprite = { name ->
-                            viewModel.addSceneNode(name, NodeType.SPRITE_OBJECT)
-                            viewModel.addLog(LogLevel.SUCCESS, "تم إدراج المورد $name في المشهد")
-                        },
-                        onClose = { globalTab = StudioGlobalTab.EDITOR }
-                    )
-                }
-
                 if (globalTab == StudioGlobalTab.BUILD) {
                     ConsoleBuildOverlay(
                         logs = uiState.engineLogs,
@@ -352,10 +480,9 @@ fun EditorWorkspaceScreen(
 
                 if (globalTab == StudioGlobalTab.SETTINGS) {
                     ProjectSettingsOverlay(
-                        projectName = project.name,
-                        template = project.templateType,
+                        project = project,
                         onSaveSettings = {
-                            viewModel.saveCurrentProject()
+                            viewModel.addLog(LogLevel.SUCCESS, "تم تحديث إعدادات المحرك والمشروع")
                             globalTab = StudioGlobalTab.EDITOR
                         },
                         onClose = { globalTab = StudioGlobalTab.EDITOR }
@@ -364,233 +491,132 @@ fun EditorWorkspaceScreen(
             }
 
             // ========================================================
-            // 3. Studio Global Bottom Navigation Bar
+            // 3. Studio Bottom Navigation Bar
             // ========================================================
-            AnimatedVisibility(
-                visible = !isFullscreen,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
-            ) {
-                StudioBottomNav(
-                    activeTab = globalTab,
-                    onTabSelected = { tab ->
-                        if (tab == StudioGlobalTab.PROJECTS) {
-                            viewModel.closeEditor()
-                        } else {
-                            globalTab = tab
-                        }
-                    }
-                )
-            }
+            StudioBottomNav(
+                activeTab = globalTab,
+                onTabSelected = { tab ->
+                    globalTab = tab
+                }
+            )
         }
 
-        SnackbarHost(hostState = snackbarHostState)
-    }
-}
-
-@Composable
-private fun AssetBrowserOverlay(
-    onAddSprite: (String) -> Unit,
-    onClose: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.65f))
-            .clickable { onClose() },
-        contentAlignment = Alignment.Center
-    ) {
-        Box(
+        // Global Snackbar Notification Host
+        SnackbarHost(
+            hostState = snackbarHostState,
             modifier = Modifier
-                .width(360.dp)
-                .fillMaxHeight(0.85f)
-                .clip(RoundedCornerShape(8.dp))
-                .background(EngineSurface)
-                .border(0.8.dp, StudioBorder, RoundedCornerShape(8.dp))
-                .clickable(enabled = false) {}
-                .padding(10.dp)
-        ) {
-            Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("مستكشف الموارد (Asset Browser)", color = TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Close",
-                        tint = TextSecondary,
-                        modifier = Modifier.size(14.dp).clickable { onClose() }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    val assets = listOf(
-                        Triple("hero_knight.png", "2D Sprite Sheet (32x32)", Icons.Default.Image),
-                        Triple("dungeon_tileset.png", "Tilemap Atlas (16x16)", Icons.Default.Image),
-                        Triple("bgm_dark_ambient.ogg", "Audio Loop (Stereo 44.1kHz)", Icons.Default.Audiotrack),
-                        Triple("jump_sfx.wav", "Sound Effect (0.4s)", Icons.Default.Audiotrack),
-                        Triple("PlayerController.kt", "Kotlin Native Script", Icons.Default.Code),
-                        Triple("PressStart2P.ttf", "Pixel Bitmap Font", Icons.Default.FontDownload)
-                    )
-
-                    items(assets) { (name, desc, icon) ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(EngineCardBg)
-                                .border(0.5.dp, StudioBorder, RoundedCornerShape(4.dp))
-                                .padding(6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(imageVector = icon, contentDescription = null, tint = StudioPurpleLight, modifier = Modifier.size(14.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Column {
-                                    Text(name, color = TextPrimary, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                                    Text(desc, color = TextMuted, fontSize = 7.5.sp)
-                                }
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(3.dp))
-                                    .background(StudioPurpleDark)
-                                    .border(0.5.dp, StudioPurpleLight, RoundedCornerShape(3.dp))
-                                    .clickable { onAddSprite(name.substringBefore(".")) }
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(imageVector = Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(9.dp))
-                                    Spacer(modifier = Modifier.width(2.dp))
-                                    Text("إدراج", color = Color.White, fontSize = 7.5.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 48.dp)
+        )
     }
 }
 
+// ----------------------------------------------------------------------------
+// Overlay Panels
+// ----------------------------------------------------------------------------
 @Composable
-private fun ConsoleBuildOverlay(
+fun ConsoleBuildOverlay(
     logs: List<com.example.model.EngineLog>,
     projectName: String,
     onExportApk: () -> Unit,
     onClearLogs: () -> Unit,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.65f))
+            .background(Color.Black.copy(alpha = 0.75f))
             .clickable { onClose() },
         contentAlignment = Alignment.Center
     ) {
-        Box(
+        Card(
             modifier = Modifier
-                .width(420.dp)
-                .fillMaxHeight(0.85f)
-                .clip(RoundedCornerShape(8.dp))
-                .background(EngineSurface)
-                .border(0.8.dp, StudioBorder, RoundedCornerShape(8.dp))
-                .clickable(enabled = false) {}
-                .padding(10.dp)
+                .fillMaxWidth(0.85f)
+                .fillMaxHeight(0.8f)
+                .clickable(enabled = false) {},
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = EngineSurface),
+            border = androidx.compose.foundation.BorderStroke(1.dp, StudioPurpleLight.copy(alpha = 0.6f))
         ) {
-            Column {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(14.dp)
+            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(imageVector = Icons.Default.Build, contentDescription = null, tint = StudioPurpleLight, modifier = Modifier.size(13.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("وحدة التحكم وسجلات المحرك (Build Terminal)", color = TextPrimary, fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
+                        Icon(Icons.Default.Build, contentDescription = null, tint = StudioPurpleLight, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "سجل تجميع وبناء المشروع (Build & Console)",
+                            color = TextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Close",
-                        tint = TextSecondary,
-                        modifier = Modifier.size(14.dp).clickable { onClose() }
-                    )
+
+                    IconButton(onClick = onClose, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = TextMuted, modifier = Modifier.size(16.dp))
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-                // Terminal Output Area
-                Box(
+                // Console output
+                LazyColumn(
                     modifier = Modifier
-                        .fillMaxWidth()
                         .weight(1f)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(EngineBackground)
-                        .border(0.5.dp, StudioBorder, RoundedCornerShape(4.dp))
-                        .padding(6.dp)
+                        .fillMaxWidth()
+                        .background(EngineBackground, RoundedCornerShape(8.dp))
+                        .padding(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(3.dp),
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        items(logs) { log ->
-                            val color = when (log.level) {
-                                LogLevel.INFO -> StudioBlue
-                                LogLevel.WARN -> StudioYellow
-                                LogLevel.ERROR -> StudioRed
-                                LogLevel.SUCCESS -> StudioGreen
-                            }
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "[${log.timestamp}]",
-                                    color = TextMuted,
-                                    fontSize = 7.5.sp,
-                                    fontFamily = FontFamily.Monospace
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = log.message,
-                                    color = color,
-                                    fontSize = 7.5.sp,
-                                    fontFamily = FontFamily.Monospace
-                                )
-                            }
+                    items(logs) { log ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(log.timestamp, color = TextMuted, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = log.message,
+                                color = when (log.level) {
+                                    LogLevel.SUCCESS -> StudioGreen
+                                    LogLevel.WARN -> StudioYellow
+                                    LogLevel.ERROR -> StudioRed
+                                    else -> TextPrimary
+                                },
+                                fontSize = 10.5.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Button(
                         onClick = onClearLogs,
                         colors = ButtonDefaults.buttonColors(containerColor = EngineCardBg),
-                        shape = RoundedCornerShape(4.dp),
-                        modifier = Modifier.height(26.dp)
+                        shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("تفريغ السجلات", color = TextSecondary, fontSize = 8.sp)
+                        Text("مسح السجلات", color = TextSecondary, fontSize = 11.sp)
                     }
 
                     Button(
                         onClick = onExportApk,
                         colors = ButtonDefaults.buttonColors(containerColor = StudioPurple),
-                        shape = RoundedCornerShape(4.dp),
-                        modifier = Modifier.height(26.dp)
+                        shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("تصدير APK للعبة", color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                        Icon(Icons.Default.Android, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("تصدير APK للعبة", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -599,93 +625,109 @@ private fun ConsoleBuildOverlay(
 }
 
 @Composable
-private fun ProjectSettingsOverlay(
-    projectName: String,
-    template: String,
+fun ProjectSettingsOverlay(
+    project: ProjectEntity,
     onSaveSettings: () -> Unit,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    var fpsCap by remember { mutableFloatStateOf(60f) }
-    var antiAliasing by remember { mutableStateOf(true) }
+    var targetFps by remember { mutableFloatStateOf(60f) }
+    var enablePhysics by remember { mutableStateOf(true) }
+    var autoSave by remember { mutableStateOf(true) }
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.65f))
+            .background(Color.Black.copy(alpha = 0.75f))
             .clickable { onClose() },
         contentAlignment = Alignment.Center
     ) {
-        Box(
+        Card(
             modifier = Modifier
-                .width(360.dp)
-                .fillMaxHeight(0.8f)
-                .clip(RoundedCornerShape(8.dp))
-                .background(EngineSurface)
-                .border(0.8.dp, StudioBorder, RoundedCornerShape(8.dp))
-                .clickable(enabled = false) {}
-                .padding(10.dp)
+                .fillMaxWidth(0.8f)
+                .clickable(enabled = false) {},
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = EngineSurface),
+            border = androidx.compose.foundation.BorderStroke(1.dp, StudioBorder)
         ) {
-            Column {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(imageVector = Icons.Default.Settings, contentDescription = null, tint = StudioPurpleLight, modifier = Modifier.size(13.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("إعدادات المحرك والمشروع", color = TextPrimary, fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
+                        Icon(Icons.Default.Settings, contentDescription = null, tint = StudioPurpleLight, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("إعدادات المشروع والمحرك", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     }
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Close",
-                        tint = TextSecondary,
-                        modifier = Modifier.size(14.dp).clickable { onClose() }
+
+                    IconButton(onClick = onClose, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = TextMuted, modifier = Modifier.size(16.dp))
+                    }
+                }
+
+                Text("اسم المشروع: ${project.name}", color = TextSecondary, fontSize = 11.sp)
+                Text("المسار: ${project.path}", color = TextMuted, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+
+                Divider(color = StudioBorder)
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("معدل الإطارات المستهدف (Target FPS): ${targetFps.toInt()}", color = TextPrimary, fontSize = 11.sp)
+                    Slider(
+                        value = targetFps,
+                        onValueChange = { targetFps = it },
+                        valueRange = 30f..120f,
+                        steps = 2,
+                        modifier = Modifier.width(140.dp),
+                        colors = SliderDefaults.colors(thumbColor = StudioPurpleLight, activeTrackColor = StudioPurple)
                     )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.weight(1f)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("اسم المشروع: $projectName", color = TextPrimary, fontSize = 8.5.sp, fontWeight = FontWeight.Bold)
-                    Text("نوع المحرك: $template", color = StudioPurpleLight, fontSize = 8.sp)
-                    Text("حزمة التطبيق: com.korva.game.${projectName.lowercase().replace(" ", "")}", color = TextMuted, fontSize = 7.5.sp, fontFamily = FontFamily.Monospace)
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("معدل الإطارات المستهدف (60 FPS)", color = TextSecondary, fontSize = 8.sp)
-                        Text("60 FPS", color = StudioGreen, fontSize = 8.sp, fontWeight = FontWeight.Bold)
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("تنعيم الحواف (Anti-Aliasing 2D)", color = TextSecondary, fontSize = 8.sp)
-                        Switch(
-                            checked = antiAliasing,
-                            onCheckedChange = { antiAliasing = it },
-                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = StudioPurple)
-                        )
-                    }
+                    Text("محاكاة الفيزياء (2D Physics Engine)", color = TextPrimary, fontSize = 11.sp)
+                    Switch(
+                        checked = enablePhysics,
+                        onCheckedChange = { enablePhysics = it },
+                        colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = StudioPurple)
+                    )
                 }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("الحفظ التلقائي عند الخروج", color = TextPrimary, fontSize = 11.sp)
+                    Switch(
+                        checked = autoSave,
+                        onCheckedChange = { autoSave = it },
+                        colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = StudioPurple)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
 
                 Button(
                     onClick = onSaveSettings,
                     colors = ButtonDefaults.buttonColors(containerColor = StudioPurple),
-                    shape = RoundedCornerShape(4.dp),
-                    modifier = Modifier.fillMaxWidth().height(28.dp)
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("حفظ الإعدادات", color = Color.White, fontSize = 8.5.sp, fontWeight = FontWeight.Bold)
+                    Text("حفظ التغييرات", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }

@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.AppDatabase
 import com.example.data.model.ProjectEntity
 import com.example.data.repository.ProjectRepository
+import com.example.engine.backend.mock.*
+import com.example.engine.interfaces.*
 import com.example.model.EditorTab
 import com.example.model.EngineLog
 import com.example.model.LogLevel
@@ -35,6 +37,13 @@ data class MainUiState(
     val projectToDelete: ProjectEntity? = null,
     val selectedProjectForDetails: ProjectEntity? = null,
     val activeProject: ProjectEntity? = null, // If non-null, editor workspace is open
+    // Korva Engine Interfaces
+    val engineProject: IProject? = null,
+    val activeScene: IScene? = null,
+    val selectedObject: IObject? = null,
+    val selectedLayerId: String? = null,
+    val canUndo: Boolean = false,
+    val canRedo: Boolean = false,
     // Editor Workspace State
     val editorTab: EditorTab = EditorTab.SCENE_VIEW,
     val sceneNodes: List<SceneNode> = emptyList(),
@@ -49,6 +58,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: ProjectRepository
 
+    // Mock Engine Instance
+    val engine: MockKorvaEngine = MockKorvaEngine()
+    val eventBus: IEventBus get() = engine.eventBus
+    val commandHistory: ICommandHistory get() = engine.commandHistory
+
     private val _searchQuery = MutableStateFlow("")
     private val _defaultSavePath = MutableStateFlow("")
     private val _isNewProjectDialogOpen = MutableStateFlow(false)
@@ -58,6 +72,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _projectToDelete = MutableStateFlow<ProjectEntity?>(null)
     private val _selectedProjectForDetails = MutableStateFlow<ProjectEntity?>(null)
     private val _activeProject = MutableStateFlow<ProjectEntity?>(null)
+
+    // Korva Reactive State
+    private val _selectedObjectId = MutableStateFlow<String?>("obj_player")
+    private val _selectedLayerId = MutableStateFlow<String?>("layer_chars")
+    private val _canUndo = MutableStateFlow(false)
+    private val _canRedo = MutableStateFlow(false)
+    private val _engineProjectRevision = MutableStateFlow(0) // increment on mutations to trigger reactive combine
 
     // Editor Workspace internal state
     private val _editorTab = MutableStateFlow(EditorTab.SCENE_VIEW)
@@ -75,8 +96,44 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val defaultPath = repository.getDefaultProjectsDirectory()
         _defaultSavePath.value = defaultPath
 
+        engine.initialize()
+
         viewModelScope.launch {
             repository.ensureDefaultProjects()
+        }
+
+        // Listen to EventBus for Engine decoupling
+        viewModelScope.launch {
+            engine.eventBus.events.collect { event ->
+                when (event) {
+                    is EngineEvent.PropertyChanged -> {
+                        addLog(LogLevel.INFO, "تعديل خاصية [${event.propertyId}] في الكائن ${event.objectId}")
+                        _engineProjectRevision.update { it + 1 }
+                    }
+                    is EngineEvent.ObjectCreated -> {
+                        addLog(LogLevel.SUCCESS, "تم إنشاء كائن جديد: ${event.obj.name}")
+                        _engineProjectRevision.update { it + 1 }
+                    }
+                    is EngineEvent.ObjectDeleted -> {
+                        addLog(LogLevel.WARN, "تم حذف الكائن: ${event.objectId}")
+                        _engineProjectRevision.update { it + 1 }
+                    }
+                    is EngineEvent.LayerCreated -> {
+                        addLog(LogLevel.SUCCESS, "تم إنشاء طبقة جديدة: ${event.layer.name}")
+                        _engineProjectRevision.update { it + 1 }
+                    }
+                    is EngineEvent.LayerDeleted -> {
+                        addLog(LogLevel.WARN, "تم حذف طبقة: ${event.layerId}")
+                        _engineProjectRevision.update { it + 1 }
+                    }
+                    is EngineEvent.SimulationStateChanged -> {
+                        _isSimulationPlaying.value = event.isRunning
+                    }
+                    else -> {
+                        _engineProjectRevision.update { it + 1 }
+                    }
+                }
+            }
         }
 
         val projectsFlow = repository.allProjects
@@ -97,7 +154,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _selectedNodeId,
             _isSimulationPlaying,
             _engineLogs,
-            _editorFps
+            _editorFps,
+            engine.currentProject,
+            _selectedObjectId,
+            _selectedLayerId,
+            _engineProjectRevision
         ) { args ->
             @Suppress("UNCHECKED_CAST")
             val rawProjects = args[0] as List<ProjectEntity>
@@ -116,6 +177,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val isPlaying = args[13] as Boolean
             val logs = args[14] as List<EngineLog>
             val fps = args[15] as Int
+            val engProj = args[16] as IProject?
+            val selObjId = args[17] as String?
+            val selLayId = args[18] as String?
+
+            val activeSc = engProj?.activeScene
+            val currentObj = if (selObjId != null) activeSc?.findObject(selObjId) else null
 
             val filtered = if (query.isBlank()) {
                 rawProjects
@@ -139,6 +206,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 projectToDelete = toDelete,
                 selectedProjectForDetails = forDetails,
                 activeProject = currentActive,
+                engineProject = engProj,
+                activeScene = activeSc,
+                selectedObject = currentObj,
+                selectedLayerId = selLayId,
+                canUndo = commandHistory.canUndo,
+                canRedo = commandHistory.canRedo,
                 editorTab = tab,
                 sceneNodes = nodes,
                 selectedNodeId = selectedNode,
@@ -151,6 +224,187 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = MainUiState(defaultSavePath = defaultPath)
         )
+    }
+
+    // --- Korva Engine Command & Action Handlers ---
+
+    fun executeEngineCommand(command: ICommand) {
+        commandHistory.execute(command)
+        _canUndo.value = commandHistory.canUndo
+        _canRedo.value = commandHistory.canRedo
+        _engineProjectRevision.update { it + 1 }
+    }
+
+    fun undo() {
+        if (commandHistory.canUndo) {
+            commandHistory.undo()
+            _canUndo.value = commandHistory.canUndo
+            _canRedo.value = commandHistory.canRedo
+            _engineProjectRevision.update { it + 1 }
+            addLog(LogLevel.INFO, "↩ تراجع (Undo)")
+        }
+    }
+
+    fun redo() {
+        if (commandHistory.canRedo) {
+            commandHistory.redo()
+            _canUndo.value = commandHistory.canUndo
+            _canRedo.value = commandHistory.canRedo
+            _engineProjectRevision.update { it + 1 }
+            addLog(LogLevel.INFO, "↪ إعادة (Redo)")
+        }
+    }
+
+    fun selectKorvaObject(objectId: String) {
+        _selectedObjectId.value = objectId
+        val obj = engine.currentProject.value?.activeScene?.findObject(objectId)
+        if (obj != null) {
+            _selectedLayerId.value = obj.layerId
+            _selectedNodeId.value = objectId
+        }
+    }
+
+    fun selectKorvaLayer(layerId: String) {
+        _selectedLayerId.value = layerId
+    }
+
+    fun setKorvaProperty(sectionId: String, propertyId: String, newValue: PropertyValue) {
+        val obj = uiState.value.selectedObject ?: return
+        val cmd = SetPropertyCommand(obj, sectionId, propertyId, newValue, eventBus)
+        executeEngineCommand(cmd)
+
+        // Sync with legacy node if matches
+        if (propertyId == "pos" && newValue is PropertyValue.Vector2Value) {
+            setSelectedNodeExactPos(newValue.x, newValue.y)
+        }
+    }
+
+    fun toggleKorvaSectionEnabled(sectionId: String, enabled: Boolean) {
+        val obj = uiState.value.selectedObject ?: return
+        val sec = obj.getSection(sectionId) ?: return
+        sec.toggleEnabled(enabled)
+        _engineProjectRevision.update { it + 1 }
+    }
+
+    fun removeKorvaSection(sectionId: String) {
+        val obj = uiState.value.selectedObject ?: return
+        val cmd = RemoveSectionCommand(obj, sectionId, eventBus)
+        executeEngineCommand(cmd)
+    }
+
+    fun addKorvaSection(sectionType: String) {
+        val obj = uiState.value.selectedObject ?: return
+        val newSection = when (sectionType.lowercase()) {
+            "sprite" -> MockSection("sec_sprite_${System.currentTimeMillis() % 1000}", "Sprite", "image").apply {
+                addProperty(MockProperty("tex", "Texture", PropertyType.TEXTURE, PropertyValue.TextureValue("new_sprite.png")))
+                addProperty(MockProperty("opacity", "Opacity", PropertyType.FLOAT, PropertyValue.FloatValue(1.0f), min = 0f, max = 1f))
+            }
+            "physics" -> MockSection("sec_phys_${System.currentTimeMillis() % 1000}", "Physics", "science").apply {
+                addProperty(MockProperty("body_type", "Body Type", PropertyType.ENUM, PropertyValue.EnumValue("Dynamic", listOf("Dynamic", "Static", "Kinematic"))))
+                addProperty(MockProperty("mass", "Mass", PropertyType.FLOAT, PropertyValue.FloatValue(1.0f), min = 0.1f, max = 50f))
+                addProperty(MockProperty("gravity", "Gravity", PropertyType.BOOL, PropertyValue.BoolValue(true)))
+            }
+            "animation" -> MockSection("sec_anim_${System.currentTimeMillis() % 1000}", "Animation", "movie").apply {
+                addProperty(MockProperty("clip", "Clip", PropertyType.ENUM, PropertyValue.EnumValue("Idle", listOf("Idle", "Run", "Jump"))))
+                addProperty(MockProperty("speed", "Speed", PropertyType.FLOAT, PropertyValue.FloatValue(1.0f), min = 0.1f, max = 3f))
+            }
+            "logic (brain)", "logic", "brain" -> MockSection("sec_logic_${System.currentTimeMillis() % 1000}", "Logic (Brain)", "psychology").apply {
+                addProperty(MockProperty("script", "Script", PropertyType.STRING, PropertyValue.StringValue("behavior.korva")))
+                addProperty(MockProperty("event", "Event", PropertyType.ENUM, PropertyValue.EnumValue("OnStart", listOf("OnStart", "OnUpdate", "OnCollision"))))
+            }
+            "light 2d", "light" -> MockSection("sec_light_${System.currentTimeMillis() % 1000}", "Light 2D", "lightbulb").apply {
+                addProperty(MockProperty("radius", "Radius", PropertyType.FLOAT, PropertyValue.FloatValue(150f), min = 10f, max = 500f))
+                addProperty(MockProperty("color", "Color", PropertyType.COLOR, PropertyValue.ColorValue("#FBBF24")))
+            }
+            "camera 2d", "camera" -> MockSection("sec_cam_${System.currentTimeMillis() % 1000}", "Camera 2D", "videocam").apply {
+                addProperty(MockProperty("zoom", "Zoom", PropertyType.FLOAT, PropertyValue.FloatValue(1.0f), min = 0.2f, max = 4f))
+            }
+            "particles 2d", "particles" -> MockSection("sec_part_${System.currentTimeMillis() % 1000}", "Particles 2D", "auto_awesome").apply {
+                addProperty(MockProperty("rate", "Rate", PropertyType.INT, PropertyValue.IntValue(30), min = 1f, max = 100f))
+                addProperty(MockProperty("color", "Color", PropertyType.COLOR, PropertyValue.ColorValue("#8B5CF6")))
+            }
+            "audio source", "audio" -> MockSection("sec_aud_${System.currentTimeMillis() % 1000}", "Audio Source", "volume_up").apply {
+                addProperty(MockProperty("clip", "Audio Clip", PropertyType.AUDIO, PropertyValue.AudioValue("sfx.wav")))
+                addProperty(MockProperty("volume", "Volume", PropertyType.FLOAT, PropertyValue.FloatValue(0.8f), min = 0f, max = 1f))
+            }
+            else -> MockSection("sec_custom_${System.currentTimeMillis() % 1000}", sectionType, "layers").apply {
+                addProperty(MockProperty("enabled", "Enabled", PropertyType.BOOL, PropertyValue.BoolValue(true)))
+            }
+        }
+        val cmd = AddSectionCommand(obj, newSection, eventBus)
+        executeEngineCommand(cmd)
+    }
+
+    fun createKorvaObject(name: String, layerId: String) {
+        val scene = engine.currentProject.value?.activeScene ?: return
+        val targetLayerId = layerId.ifBlank { scene.layers.firstOrNull()?.id ?: return }
+        val cmd = CreateObjectCommand(scene, name, targetLayerId, eventBus)
+        executeEngineCommand(cmd)
+        addSceneNode(name, NodeType.SPRITE_OBJECT)
+    }
+
+    fun deleteKorvaObject(objectId: String) {
+        val scene = engine.currentProject.value?.activeScene ?: return
+        val cmd = DeleteObjectCommand(scene, objectId, eventBus)
+        executeEngineCommand(cmd)
+        deleteNodeById(objectId)
+    }
+
+    fun renameKorvaObject(newName: String) {
+        val obj = uiState.value.selectedObject ?: return
+        val cmd = RenameObjectCommand(obj, newName, eventBus)
+        executeEngineCommand(cmd)
+        setSelectedNodeName(newName)
+    }
+
+    fun createKorvaLayer(name: String) {
+        val scene = engine.currentProject.value?.activeScene ?: return
+        val cmd = CreateLayerCommand(scene, name, eventBus)
+        executeEngineCommand(cmd)
+    }
+
+    fun deleteKorvaLayer(layerId: String) {
+        val scene = engine.currentProject.value?.activeScene ?: return
+        val cmd = DeleteLayerCommand(scene, layerId, eventBus)
+        executeEngineCommand(cmd)
+    }
+
+    fun toggleKorvaLayerVisibility(layerId: String) {
+        val layer = engine.currentProject.value?.activeScene?.getLayer(layerId) ?: return
+        layer.isVisible = !layer.isVisible
+        _engineProjectRevision.update { it + 1 }
+    }
+
+    fun toggleKorvaLayerLock(layerId: String) {
+        val layer = engine.currentProject.value?.activeScene?.getLayer(layerId) ?: return
+        layer.isLocked = !layer.isLocked
+        _engineProjectRevision.update { it + 1 }
+    }
+
+    fun moveKorvaLayerUp(layerId: String) {
+        val scene = engine.currentProject.value?.activeScene ?: return
+        val layers = scene.layers.toMutableList()
+        val index = layers.indexOfFirst { it.id == layerId }
+        if (index > 0) {
+            val temp = layers[index]
+            layers[index] = layers[index - 1]
+            layers[index - 1] = temp
+            scene.reorderLayers(layers.map { it.id })
+            _engineProjectRevision.update { it + 1 }
+        }
+    }
+
+    fun moveKorvaLayerDown(layerId: String) {
+        val scene = engine.currentProject.value?.activeScene ?: return
+        val layers = scene.layers.toMutableList()
+        val index = layers.indexOfFirst { it.id == layerId }
+        if (index >= 0 && index < layers.size - 1) {
+            val temp = layers[index]
+            layers[index] = layers[index + 1]
+            layers[index + 1] = temp
+            scene.reorderLayers(layers.map { it.id })
+            _engineProjectRevision.update { it + 1 }
+        }
     }
 
     // --- Dialog Controls ---
@@ -227,6 +481,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 templateType = template
             )
             _isNewProjectDialogOpen.value = false
+            engine.createProject(name, created.path, template)
             openProjectInEditor(created)
         }
     }
@@ -235,68 +490,71 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val project = repository.openExistingProjectFolder(folderPath)
             _isOpenProjectDialogOpen.value = false
+            engine.loadProject(folderPath)
             openProjectInEditor(project)
         }
     }
 
     fun openProjectInEditor(project: ProjectEntity) {
         _activeProject.value = project
+        engine.loadProject(project.path)
         initEditorForProject(project)
     }
 
     fun closeEditor() {
         _activeProject.value = null
         _isSimulationPlaying.value = false
+        engine.stopSimulation()
     }
 
     // --- Editor Workspace Logic ---
     private fun initEditorForProject(project: ProjectEntity) {
         val initialNodes = listOf(
             SceneNode(
-                id = "node_player",
+                id = "obj_player",
                 name = "Player",
                 type = NodeType.PLAYER,
-                posX = 0f,
-                posY = 10f,
-                scale = 1.0f,
+                posX = -60f,
+                posY = 60f,
+                scale = 1.2f,
                 colorHex = "#8B5CF6",
                 hasPhysics = true,
                 mass = 1.0f
             ),
             SceneNode(
-                id = "node_enemy",
-                name = "Enemy",
+                id = "obj_enemy",
+                name = "Enemy_Goblin",
                 type = NodeType.ENEMY,
-                posX = -120f,
-                posY = -40f,
+                posX = 80f,
+                posY = 70f,
                 scale = 1.0f,
                 colorHex = "#EF4444",
                 hasPhysics = true,
-                mass = 1.5f
+                mass = 1.2f
             ),
             SceneNode(
-                id = "node_tree",
-                name = "Tree",
+                id = "obj_tree",
+                name = "CyberTree_A",
                 type = NodeType.SPRITE_OBJECT,
-                posX = 160f,
-                posY = -80f,
-                scale = 1.8f,
+                posX = -140f,
+                posY = 70f,
+                scale = 1.2f,
                 colorHex = "#22C55E",
                 hasPhysics = false
             ),
             SceneNode(
-                id = "node_coin",
-                name = "Coin",
-                type = NodeType.PARTICLE_SYSTEM,
-                posX = 80f,
-                posY = 40f,
-                scale = 0.8f,
-                colorHex = "#FACC15",
+                id = "obj_ground",
+                name = "Ground_Platform",
+                type = NodeType.SPRITE_OBJECT,
+                posX = 0f,
+                posY = 120f,
+                scale = 3.0f,
+                colorHex = "#22C55E",
                 hasPhysics = false
             ),
             SceneNode(
-                id = "node_cam",
-                name = "Camera",
+                id = "obj_camera",
+                name = "MainCamera",
                 type = NodeType.CAMERA,
                 posX = 0f,
                 posY = 0f,
@@ -304,82 +562,72 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 colorHex = "#38BDF8"
             ),
             SceneNode(
-                id = "node_canvas",
-                name = "Canvas",
-                type = NodeType.SPRITE_OBJECT,
-                posX = 0f,
-                posY = 0f,
-                scale = 1.0f,
-                colorHex = "#F472B6"
-            ),
-            SceneNode(
-                id = "node_light",
-                name = "Light",
+                id = "obj_torch",
+                name = "PointLight_Torch",
                 type = NodeType.LIGHT,
-                posX = -60f,
-                posY = -120f,
-                scale = 1.2f,
-                colorHex = "#FB923C"
+                posX = -140f,
+                posY = 20f,
+                scale = 1.0f,
+                colorHex = "#FBBF24"
             )
         )
         _sceneNodes.value = initialNodes
-        _selectedNodeId.value = "node_player"
+        _selectedNodeId.value = "obj_player"
+        _selectedObjectId.value = "obj_player"
+        _selectedLayerId.value = "layer_chars"
 
-        val timeStr = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
-        _engineLogs.value = listOf(
-            EngineLog(
-                timestamp = timeStr,
-                level = LogLevel.INFO,
-                message = "تم تحميل محرك korva engine بنجاح (النواة v2.4.0)"
-            ),
-            EngineLog(
-                timestamp = timeStr,
-                level = LogLevel.SUCCESS,
-                message = "تم فتح المشروع: ${project.name} من المسار ${project.path}"
-            ),
-            EngineLog(
-                timestamp = timeStr,
-                level = LogLevel.INFO,
-                message = "تم إنشاء مسار الرندرة: 60 FPS Target - Shader Core Ready"
-            )
-        )
+        addLog(LogLevel.INFO, "🎮 تم تحميل مشروع Korva بنجاح: ${project.name}")
+        addLog(LogLevel.SUCCESS, "✓ تم تهيئة واجهة المشروع والمشاهد والطبقات بنجاح!")
+    }
+
+    fun switchActiveProjectByName(name: String) {
+        viewModelScope.launch {
+            val proj = repository.allProjects
+            val found = uiState.value.projects.find { it.name == name }
+            if (found != null) {
+                openProjectInEditor(found)
+            }
+        }
     }
 
     fun selectSceneNode(nodeId: String) {
         _selectedNodeId.value = nodeId
-    }
-
-    fun setEditorTab(tab: EditorTab) {
-        _editorTab.value = tab
+        _selectedObjectId.value = nodeId
     }
 
     fun addSceneNode(name: String, type: NodeType) {
         val newNode = SceneNode(
-            id = "node_${System.currentTimeMillis() % 100000}",
-            name = name.ifBlank { "New Object" },
+            id = "obj_${System.currentTimeMillis() % 100000}",
+            name = name,
             type = type,
-            posX = (Math.random() * 80 - 40).toFloat(),
-            posY = (Math.random() * 80 - 40).toFloat(),
-            scale = 1f,
+            posX = 0f,
+            posY = 0f,
+            scale = 1.0f,
             colorHex = when (type) {
-                NodeType.PLAYER -> "#00E5C9"
-                NodeType.ENEMY -> "#F43F5E"
-                NodeType.PLATFORM -> "#64748B"
+                NodeType.PLAYER -> "#8B5CF6"
+                NodeType.ENEMY -> "#EF4444"
                 NodeType.LIGHT -> "#FBBF24"
-                NodeType.PARTICLE_SYSTEM -> "#A855F7"
-                else -> "#38BDF8"
+                NodeType.CAMERA -> "#38BDF8"
+                NodeType.PARTICLE_SYSTEM -> "#EC4899"
+                else -> "#22C55E"
             }
         )
         _sceneNodes.update { it + newNode }
         _selectedNodeId.value = newNode.id
-        addLog(LogLevel.INFO, "تمت إضافة عقدة جديدة: ${newNode.name}")
+        _selectedObjectId.value = newNode.id
+        addLog(LogLevel.INFO, "تمت إضافة الكائن ${newNode.name} إلى المشهد")
+    }
+
+    fun deleteSelectedNode() {
+        val selectedId = _selectedNodeId.value ?: return
+        deleteNodeById(selectedId)
     }
 
     fun updateSelectedNodePos(dx: Float, dy: Float) {
-        val currentId = _selectedNodeId.value ?: return
+        val selectedId = _selectedNodeId.value ?: return
         _sceneNodes.update { list ->
             list.map { node ->
-                if (node.id == currentId) {
+                if (node.id == selectedId) {
                     node.copy(posX = node.posX + dx, posY = node.posY + dy)
                 } else node
             }
@@ -387,119 +635,77 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setSelectedNodeExactPos(x: Float, y: Float) {
-        val currentId = _selectedNodeId.value ?: return
+        val selectedId = _selectedNodeId.value ?: return
         _sceneNodes.update { list ->
             list.map { node ->
-                if (node.id == currentId) {
+                if (node.id == selectedId) {
                     node.copy(posX = x, posY = y)
                 } else node
             }
         }
     }
 
-    fun updateSelectedNodeScale(scaleMultiplier: Float) {
-        val currentId = _selectedNodeId.value ?: return
-        _sceneNodes.update { list ->
-            list.map { node ->
-                if (node.id == currentId) {
-                    val newScale = (node.scale * scaleMultiplier).coerceIn(0.2f, 8.0f)
-                    node.copy(scale = newScale)
-                } else node
-            }
-        }
-    }
-
     fun setSelectedNodeExactScale(scale: Float) {
-        val currentId = _selectedNodeId.value ?: return
+        val selectedId = _selectedNodeId.value ?: return
         _sceneNodes.update { list ->
             list.map { node ->
-                if (node.id == currentId) {
-                    node.copy(scale = scale.coerceIn(0.2f, 8.0f))
+                if (node.id == selectedId) {
+                    node.copy(scale = scale.coerceIn(0.1f, 10f))
                 } else node
             }
         }
     }
 
-    fun updateSelectedNodeRotation(dAngle: Float) {
-        val currentId = _selectedNodeId.value ?: return
+    fun setSelectedNodeExactRotation(rotation: Float) {
+        val selectedId = _selectedNodeId.value ?: return
         _sceneNodes.update { list ->
             list.map { node ->
-                if (node.id == currentId) {
-                    node.copy(rotation = (node.rotation + dAngle) % 360f)
-                } else node
-            }
-        }
-    }
-
-    fun setSelectedNodeExactRotation(angle: Float) {
-        val currentId = _selectedNodeId.value ?: return
-        _sceneNodes.update { list ->
-            list.map { node ->
-                if (node.id == currentId) {
-                    node.copy(rotation = angle % 360f)
-                } else node
-            }
-        }
-    }
-
-    fun setSelectedNodeColor(colorHex: String) {
-        val currentId = _selectedNodeId.value ?: return
-        _sceneNodes.update { list ->
-            list.map { node ->
-                if (node.id == currentId) {
-                    node.copy(colorHex = colorHex)
-                } else node
-            }
-        }
-    }
-
-    fun setSelectedNodePhysics(enabled: Boolean, mass: Float = 1.0f) {
-        val currentId = _selectedNodeId.value ?: return
-        _sceneNodes.update { list ->
-            list.map { node ->
-                if (node.id == currentId) {
-                    node.copy(hasPhysics = enabled, mass = mass)
+                if (node.id == selectedId) {
+                    node.copy(rotation = rotation)
                 } else node
             }
         }
     }
 
     fun setSelectedNodeName(name: String) {
-        val currentId = _selectedNodeId.value ?: return
+        val selectedId = _selectedNodeId.value ?: return
         _sceneNodes.update { list ->
             list.map { node ->
-                if (node.id == currentId) {
+                if (node.id == selectedId) {
                     node.copy(name = name)
                 } else node
             }
         }
     }
 
-    fun switchActiveProject(project: ProjectEntity) {
-        openProjectInEditor(project)
-    }
-
-    fun switchActiveProjectByName(name: String) {
-        val target = uiState.value.projects.find { it.name.equals(name, ignoreCase = true) }
-        if (target != null) {
-            openProjectInEditor(target)
-        } else {
-            _activeProject.value?.let { current ->
-                _activeProject.value = current.copy(name = name)
+    fun setSelectedNodeColor(colorHex: String) {
+        val selectedId = _selectedNodeId.value ?: return
+        _sceneNodes.update { list ->
+            list.map { node ->
+                if (node.id == selectedId) {
+                    node.copy(colorHex = colorHex)
+                } else node
             }
         }
     }
 
-    fun deleteSelectedNode() {
-        val currentId = _selectedNodeId.value ?: return
-        deleteNodeById(currentId)
+    fun setSelectedNodePhysics(enabled: Boolean, mass: Float) {
+        val selectedId = _selectedNodeId.value ?: return
+        _sceneNodes.update { list ->
+            list.map { node ->
+                if (node.id == selectedId) {
+                    node.copy(hasPhysics = enabled, mass = mass)
+                } else node
+            }
+        }
     }
 
     fun deleteNodeById(nodeId: String) {
-        val nodeName = _sceneNodes.value.find { it.id == nodeId }?.name ?: ""
+        val nodeName = _sceneNodes.value.find { it.id == nodeId }?.name ?: nodeId
         _sceneNodes.update { it.filterNot { node -> node.id == nodeId } }
         if (_selectedNodeId.value == nodeId) {
             _selectedNodeId.value = _sceneNodes.value.firstOrNull()?.id
+            _selectedObjectId.value = _selectedNodeId.value
         }
         addLog(LogLevel.WARN, "تم حذف الكائن: $nodeName")
     }
@@ -507,13 +713,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun duplicateNode(nodeId: String) {
         val original = _sceneNodes.value.find { it.id == nodeId } ?: return
         val duplicated = original.copy(
-            id = "node_${System.currentTimeMillis() % 100000}",
+            id = "obj_${System.currentTimeMillis() % 100000}",
             name = "${original.name}_Copy",
             posX = original.posX + 30f,
             posY = original.posY + 30f
         )
         _sceneNodes.update { it + duplicated }
         _selectedNodeId.value = duplicated.id
+        _selectedObjectId.value = duplicated.id
         addLog(LogLevel.SUCCESS, "تم استنساخ الكائن: ${duplicated.name}")
     }
 
@@ -567,10 +774,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun toggleSimulation() {
         val newState = !_isSimulationPlaying.value
         _isSimulationPlaying.value = newState
-        val timeStr = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
         if (newState) {
+            engine.startSimulation()
             addLog(LogLevel.SUCCESS, "▶ تم بدء تشغيل المحاكاة التفاعلية (Physics Simulation Running)")
         } else {
+            engine.pauseSimulation()
             addLog(LogLevel.INFO, "⏹ تم إيقاف المحاكاة والعودة لوضع التصميم")
         }
     }

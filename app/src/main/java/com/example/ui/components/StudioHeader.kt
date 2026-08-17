@@ -67,11 +67,15 @@ fun StudioHeader(
     isInspectorVisible: Boolean,
     isTimelineVisible: Boolean,
     isFullscreen: Boolean,
+    canUndo: Boolean = false,
+    canRedo: Boolean = false,
     availableProjects: List<ProjectEntity> = emptyList(),
     onToggleHierarchy: () -> Unit,
     onToggleInspector: () -> Unit,
     onToggleTimeline: () -> Unit,
     onToggleFullscreen: () -> Unit,
+    onUndoClick: () -> Unit = {},
+    onRedoClick: () -> Unit = {},
     onPlayClick: () -> Unit,
     onPauseClick: () -> Unit,
     onStopClick: () -> Unit,
@@ -215,11 +219,56 @@ fun StudioHeader(
             }
         }
 
-        // Center Section: Transport Controls (Play, Pause, Stop) + View Layout Toggles
+        // Center Section: Undo/Redo + Transport Controls (Play, Pause, Stop) + View Layout Toggles
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
+            // Undo / Redo Controls
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(5.dp))
+                    .background(EngineCardBg)
+                    .border(0.5.dp, StudioBorder, RoundedCornerShape(5.dp))
+                    .padding(horizontal = 2.dp, vertical = 2.dp)
+            ) {
+                // Undo
+                Box(
+                    modifier = Modifier
+                        .size(20.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .clickable(enabled = canUndo) { onUndoClick() }
+                        .padding(2.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "↩",
+                        color = if (canUndo) StudioPurpleLight else TextMuted,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                // Redo
+                Box(
+                    modifier = Modifier
+                        .size(20.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .clickable(enabled = canRedo) { onRedoClick() }
+                        .padding(2.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "↪",
+                        color = if (canRedo) StudioPurpleLight else TextMuted,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
             // Transport Controls
             Row(
                 verticalAlignment = Alignment.CenterVertically,
