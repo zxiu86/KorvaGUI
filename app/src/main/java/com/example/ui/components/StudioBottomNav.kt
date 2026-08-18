@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderSpecial
+import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ViewInAr
 import androidx.compose.material3.Icon
@@ -40,6 +41,7 @@ enum class StudioGlobalTab {
     PROJECTS,
     ASSETS,
     EDITOR,
+    ANIMATIONS,
     BUILD,
     SETTINGS
 }
@@ -64,6 +66,7 @@ fun StudioBottomNav(
             Triple(StudioGlobalTab.PROJECTS, "Projects", Icons.Default.Folder),
             Triple(StudioGlobalTab.ASSETS, "Assets", Icons.Default.FolderSpecial),
             Triple(StudioGlobalTab.EDITOR, "Editor", Icons.Default.ViewInAr),
+            Triple(StudioGlobalTab.ANIMATIONS, "Animations", Icons.Default.Movie),
             Triple(StudioGlobalTab.BUILD, "Build", Icons.Default.Build),
             Triple(StudioGlobalTab.SETTINGS, "Settings", Icons.Default.Settings)
         ).forEach { (tab, label, icon) ->

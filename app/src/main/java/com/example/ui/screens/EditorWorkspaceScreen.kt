@@ -52,7 +52,6 @@ enum class LeftPanelMode {
 }
 
 enum class BottomPanelMode {
-    TIMELINE,
     ASSETS,
     CONSOLE
 }
@@ -76,7 +75,7 @@ fun EditorWorkspaceScreen(
 
     // Sub-panel mode switches
     var leftPanelMode by remember { mutableStateOf(LeftPanelMode.OBJECTS) }
-    var bottomPanelMode by remember { mutableStateOf(BottomPanelMode.TIMELINE) }
+    var bottomPanelMode by remember { mutableStateOf(BottomPanelMode.ASSETS) }
 
     val selectedNode = uiState.sceneNodes.find { it.id == uiState.selectedNodeId }
         ?: uiState.sceneNodes.firstOrNull()
@@ -159,6 +158,9 @@ fun EditorWorkspaceScreen(
                 },
                 onBackToProjects = {
                     viewModel.closeEditor()
+                },
+                onOpenAnimationPage = {
+                    globalTab = StudioGlobalTab.ANIMATIONS
                 }
             )
 
@@ -323,7 +325,7 @@ fun EditorWorkspaceScreen(
                                 .fillMaxWidth()
                         )
 
-                        // Bottom Panels (Timeline / Assets / Console / Bottom Sheet)
+                        // Bottom Panels (Assets / Console)
                         if (!isTimelineVisible && !isFullscreen) {
                             // Mini Dock bar at bottom
                             Row(
@@ -350,23 +352,6 @@ fun EditorWorkspaceScreen(
                                             Icon(Icons.Default.Folder, contentDescription = null, tint = StudioPurpleLight, modifier = Modifier.size(12.dp))
                                             Spacer(modifier = Modifier.width(4.dp))
                                             Text("الموارد (Assets)", color = TextSecondary, fontSize = 9.5.sp, fontWeight = FontWeight.Medium)
-                                        }
-                                    }
-
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(4.dp))
-                                            .background(EngineCardBg)
-                                            .clickable {
-                                                bottomPanelMode = BottomPanelMode.TIMELINE
-                                                isTimelineVisible = true
-                                            }
-                                            .padding(horizontal = 8.dp, vertical = 3.dp)
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(Icons.Default.Timeline, contentDescription = null, tint = StudioPurpleLight, modifier = Modifier.size(12.dp))
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text("التحريك (Timeline)", color = TextSecondary, fontSize = 9.5.sp, fontWeight = FontWeight.Medium)
                                         }
                                     }
 
@@ -410,7 +395,6 @@ fun EditorWorkspaceScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     listOf(
-                                        BottomPanelMode.TIMELINE to "التحريك (Timeline)",
                                         BottomPanelMode.ASSETS to "الملفات (Assets)",
                                         BottomPanelMode.CONSOLE to "السجل (Console)"
                                     ).forEach { (mode, title) ->
@@ -442,9 +426,6 @@ fun EditorWorkspaceScreen(
                                 }
 
                                 when (bottomPanelMode) {
-                                    BottomPanelMode.TIMELINE -> {
-                                        AnimationTimelinePanel(modifier = Modifier.fillMaxWidth())
-                                    }
                                     BottomPanelMode.ASSETS -> {
                                         AssetBrowserPanel(
                                             assets = uiState.engineProject?.assets ?: emptyList(),
@@ -527,8 +508,16 @@ fun EditorWorkspaceScreen(
                 }
 
                 // ========================================================
-                // Overlays for Bottom Tabs (Build/Console, Settings)
+                // Overlays for Bottom Tabs (Animations, Build/Console, Settings)
                 // ========================================================
+                if (globalTab == StudioGlobalTab.ANIMATIONS) {
+                    AnimationEditorScreen(
+                        projectName = project.name,
+                        selectedNode = selectedNode,
+                        onBackToEditor = { globalTab = StudioGlobalTab.EDITOR }
+                    )
+                }
+
                 if (globalTab == StudioGlobalTab.BUILD) {
                     ConsoleBuildOverlay(
                         logs = uiState.engineLogs,
@@ -564,7 +553,15 @@ fun EditorWorkspaceScreen(
             StudioBottomNav(
                 activeTab = globalTab,
                 onTabSelected = { tab ->
-                    globalTab = tab
+                    when (tab) {
+                        StudioGlobalTab.PROJECTS -> viewModel.closeEditor()
+                        StudioGlobalTab.ASSETS -> {
+                            bottomPanelMode = BottomPanelMode.ASSETS
+                            isTimelineVisible = true
+                            globalTab = StudioGlobalTab.EDITOR
+                        }
+                        else -> globalTab = tab
+                    }
                 }
             )
         }

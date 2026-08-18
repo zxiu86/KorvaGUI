@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Save
@@ -82,7 +83,8 @@ fun StudioHeader(
     onBuildApkClick: () -> Unit,
     onSaveClick: () -> Unit,
     onProjectSwitch: (String) -> Unit,
-    onBackToProjects: () -> Unit
+    onBackToProjects: () -> Unit,
+    onOpenAnimationPage: () -> Unit = {}
 ) {
     var showProjectDropdown by remember { mutableStateOf(false) }
 
@@ -401,6 +403,34 @@ fun StudioHeader(
                         tint = if (isTimelineVisible) StudioPurpleLight else TextMuted,
                         modifier = Modifier.size(11.dp)
                     )
+                }
+
+                // Dedicated Animations Page Button
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(StudioPurpleDark)
+                        .border(0.5.dp, StudioPurpleLight, RoundedCornerShape(3.dp))
+                        .clickable { onOpenAnimationPage() }
+                        .padding(horizontal = 5.dp, vertical = 2.dp)
+                        .testTag("open_animations_page_btn"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Movie,
+                            contentDescription = "صفحة الأنيميشن",
+                            tint = StudioPurpleLight,
+                            modifier = Modifier.size(10.dp)
+                        )
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text(
+                            text = "Animations",
+                            color = Color.White,
+                            fontSize = 8.5.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
 
                 // Toggle Inspector (Right Panel)

@@ -34,6 +34,7 @@ import kotlinx.coroutines.delay
 fun AnimationTimelinePanel(
     selectedClip: String = "Idle",
     onClipChange: (String) -> Unit = {},
+    onOpenFullEditor: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val clips = remember { listOf("Idle", "Walk", "Run", "Jump", "Attack", "Hurt") }
@@ -67,10 +68,22 @@ fun AnimationTimelinePanel(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Icon(Icons.Default.Movie, contentDescription = null, tint = StudioPurpleLight, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(6.dp))
                 Text("محرر التحريك (Animation Timeline)", color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(StudioPurpleDark)
+                        .border(0.6.dp, StudioPurpleLight, RoundedCornerShape(4.dp))
+                        .clickable { onOpenFullEditor() }
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("صفحة الأنيميشن ↗", color = StudioPurpleLight, fontSize = 9.5.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
 
             // Playback and Frame controls
