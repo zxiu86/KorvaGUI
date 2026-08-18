@@ -24,6 +24,7 @@ val StudioPurpleBorder = Color(0x558B5CF6)
 
 // Component & Category Accents
 val StudioBlue = Color(0xFF38BDF8)
+val StudioCyan = Color(0xFF38BDF8)
 val StudioGreen = Color(0xFF22C55E)
 val StudioRed = Color(0xFFEF4444)
 val StudioOrange = Color(0xFFFB923C)

@@ -1,10 +1,6 @@
 package com.example.ui.animation
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -15,14 +11,13 @@ import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,13 +34,22 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.example.engine.animation.*
 import com.example.ui.theme.*
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
+/**
+ * KORVA ENGINE — REDESIGNED TOUCH-FIRST DOPE SHEET TIMELINE
+ * 
+ * Rebuilt from zero for fast, simple, precise, and extremely comfortable
+ * keyframe, track, playhead, and timing editing on mobile.
+ */
 @Composable
 fun DopeSheetTimeline(
     activeClip: ClipData,
@@ -88,43 +92,50 @@ fun DopeSheetTimeline(
     onAddMarker: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // -------------------------------------------------------------------------
+    // Viewport Zoom & Sizing State
+    // -------------------------------------------------------------------------
     var frameWidthDp by remember { mutableFloatStateOf(24f) }
     var isMultiSelectMode by remember { mutableStateOf(false) }
-    var showMiniOverview by remember { mutableStateOf(true) }
     var isTransformGroupExpanded by remember { mutableStateOf(true) }
 
-    // Real-time drag feedback HUD state
+    // Direct Frame Range & Retiming Modals internal to DopeSheet
+    var isQuickNumericEditOpen by remember { mutableStateOf(false) }
+    var isQuickInsertTimeOpen by remember { mutableStateOf(false) }
+    var isQuickRangeScaleOpen by remember { mutableStateOf(false) }
+
+    // Live Drag HUD State
     var isDraggingKeyframe by remember { mutableStateOf(false) }
-    var dragOriginalFrame by remember { mutableIntStateOf(0) }
-    var dragCurrentFrame by remember { mutableIntStateOf(0) }
-    var dragTrackName by remember { mutableStateOf("") }
+    var dragDeltaFrames by remember { mutableIntStateOf(0) }
+    var dragDisplayFrame by remember { mutableIntStateOf(0) }
+    var dragTargetTrackName by remember { mutableStateOf("") }
 
     val hScrollState = rememberScrollState()
     val vScrollState = rememberScrollState()
     val density = LocalDensity.current
 
     val totalFrames = activeClip.durationFrames.coerceAtLeast(1)
-    val timelineWidthDp = (totalFrames + 8) * frameWidthDp
+    val timelineWidthDp = (totalFrames + 12) * frameWidthDp
 
     // Pinch-to-zoom gesture state
     val transformableState = rememberTransformableState { zoomChange, _, _ ->
-        val newWidth = (frameWidthDp * zoomChange).coerceIn(12f, 72f)
+        val newWidth = (frameWidthDp * zoomChange).coerceIn(12f, 64f)
         frameWidthDp = newWidth
     }
 
-    // Helper for snapping
+    // Helper for frame snapping
     fun calculateSnappedFrame(rawFrame: Float): Float {
         return when (snapMode) {
             SnapMode.SNAP_FRAME -> rawFrame.roundToInt().toFloat()
             SnapMode.SNAP_KEYFRAME -> {
                 val allKfFrames = activeClip.tracks.flatMap { it.keyframes }.map { it.frame.toFloat() }
-                val closest = allKfFrames.minByOrNull { kotlin.math.abs(it - rawFrame) }
-                if (closest != null && kotlin.math.abs(closest - rawFrame) < 0.6f) closest else rawFrame.roundToInt().toFloat()
+                val closest = allKfFrames.minByOrNull { abs(it - rawFrame) }
+                if (closest != null && abs(closest - rawFrame) < 0.6f) closest else rawFrame.roundToInt().toFloat()
             }
             SnapMode.SNAP_MARKER -> {
                 val allMarkerFrames = activeClip.markers.map { it.frame.toFloat() }
-                val closest = allMarkerFrames.minByOrNull { kotlin.math.abs(it - rawFrame) }
-                if (closest != null && kotlin.math.abs(closest - rawFrame) < 0.8f) closest else rawFrame.roundToInt().toFloat()
+                val closest = allMarkerFrames.minByOrNull { abs(it - rawFrame) }
+                if (closest != null && abs(closest - rawFrame) < 0.8f) closest else rawFrame.roundToInt().toFloat()
             }
             SnapMode.FREE_MOVE -> rawFrame
         }
@@ -138,670 +149,387 @@ fun DopeSheetTimeline(
         activeClip.tracks.filter { it.category != TrackCategory.TRANSFORM }
     }
 
-    // Aggregated transform keyframes for collapsed group row
-    val transformAggregatedKeyframes = remember(transformTracks) {
-        transformTracks.flatMap { it.keyframes }.groupBy { it.frame }
+    // Visible tracks list based on expansion & focus
+    val activeTrack = remember(selectedTrackId, activeClip.tracks) {
+        activeClip.tracks.find { it.id == selectedTrackId }
     }
 
-    val anyTrackFocused = remember(activeClip.tracks) {
-        activeClip.tracks.any { it.isFocused }
+    // Selected keyframes list
+    val allSelectedKeyframes = remember(selectedKeyframeIds, activeClip.tracks) {
+        activeClip.tracks.flatMap { track ->
+            track.keyframes.filter { selectedKeyframeIds.contains(it.id) }.map { Pair(track, it) }
+        }
     }
 
-    Box(
+    // Contextual button label computation
+    val contextualAddKeyLabel = remember(activeTrack, selectedKeyframeIds) {
+        if (activeTrack != null) {
+            when (activeTrack.category) {
+                TrackCategory.TRANSFORM -> "Add ${activeTrack.name} Key"
+                TrackCategory.SPRITE -> "Add Sprite Key"
+                TrackCategory.VISUAL -> "Add Visual Key"
+                TrackCategory.EVENTS -> "Add Event Key"
+                TrackCategory.AUDIO -> "Add Audio Key"
+                else -> "Add ${activeTrack.name} Key"
+            }
+        } else {
+            "Add Keyframe"
+        }
+    }
+
+    Column(
         modifier = modifier
-            .fillMaxWidth()
-            .background(EngineSurface)
-            .border(width = 0.5.dp, color = StudioBorder)
+            .fillMaxSize()
+            .background(EngineBackground)
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // =================================================================
-            // 1. Dope Sheet Control Bar (Add Tracks, Multi-Select Toggle, Zoom)
-            // =================================================================
+        // =====================================================================
+        // SECTION 1: TOP DYNAMIC CONTEXTUAL ACTION & RANGE BAR
+        // =====================================================================
+        Surface(
+            color = EngineSurface,
+            tonalElevation = 2.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(width = 1.dp, color = EngineBorder, shape = RoundedCornerShape(0.dp))
+        ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(28.dp)
-                    .background(EngineBackground)
-                    .border(0.5.dp, StudioBorder)
-                    .padding(horizontal = 6.dp),
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Left: Title & Track Actions
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Icon(Icons.Default.Timeline, contentDescription = null, tint = StudioPurpleLight, modifier = Modifier.size(13.dp))
-                    Spacer(modifier = Modifier.width(2.dp))
-                    Text("Dope Sheet", color = TextPrimary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-
-                    // Add Track Button
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(3.dp))
-                            .background(StudioPurpleDark)
-                            .border(0.5.dp, StudioPurpleLight.copy(alpha = 0.4f), RoundedCornerShape(3.dp))
-                            .clickable { onAddTrack() }
-                            .padding(horizontal = 5.dp, vertical = 2.dp)
+                // Left: Range & Current Frame Information Pill
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    // Frame Summary Pill
+                    Surface(
+                        color = EngineCardBg,
+                        shape = RoundedCornerShape(6.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, StudioPurpleBorder),
+                        modifier = Modifier.clickable { isQuickNumericEditOpen = true }
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Add, contentDescription = null, tint = StudioPurpleLight, modifier = Modifier.size(10.dp))
-                            Spacer(modifier = Modifier.width(2.dp))
-                            Text("مسار", color = StudioPurpleLight, fontSize = 8.5.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    // Add Event Button
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(3.dp))
-                            .background(EngineCardBg)
-                            .border(0.5.dp, StudioBorder, RoundedCornerShape(3.dp))
-                            .clickable { onAddEvent() }
-                            .padding(horizontal = 5.dp, vertical = 2.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Bolt, contentDescription = null, tint = StudioYellow, modifier = Modifier.size(10.dp))
-                            Spacer(modifier = Modifier.width(2.dp))
-                            Text("حدث", color = StudioYellow, fontSize = 8.5.sp)
-                        }
-                    }
-
-                    // Add Marker Button
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(3.dp))
-                            .background(EngineCardBg)
-                            .border(0.5.dp, StudioBorder, RoundedCornerShape(3.dp))
-                            .clickable { onAddMarker() }
-                            .padding(horizontal = 5.dp, vertical = 2.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Bookmark, contentDescription = null, tint = StudioGreen, modifier = Modifier.size(10.dp))
-                            Spacer(modifier = Modifier.width(2.dp))
-                            Text("علامة", color = StudioGreen, fontSize = 8.5.sp)
-                        }
-                    }
-
-                    // Multi-Select Mode Toggle
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(3.dp))
-                            .background(if (isMultiSelectMode) StudioPurple else EngineCardBg)
-                            .border(0.5.dp, if (isMultiSelectMode) StudioPurpleLight else StudioBorder, RoundedCornerShape(3.dp))
-                            .clickable { isMultiSelectMode = !isMultiSelectMode }
-                            .padding(horizontal = 5.dp, vertical = 2.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.SelectAll, contentDescription = null, tint = if (isMultiSelectMode) Color.White else TextSecondary, modifier = Modifier.size(10.dp))
-                            Spacer(modifier = Modifier.width(2.dp))
-                            Text("تحديد متعدد", color = if (isMultiSelectMode) Color.White else TextSecondary, fontSize = 8.5.sp, fontWeight = if (isMultiSelectMode) FontWeight.Bold else FontWeight.Normal)
-                        }
-                    }
-
-                    // Mini Overview Strip Toggle
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(3.dp))
-                            .background(if (showMiniOverview) StudioPurpleDark else EngineCardBg)
-                            .border(0.5.dp, if (showMiniOverview) StudioPurpleLight else StudioBorder, RoundedCornerShape(3.dp))
-                            .clickable { showMiniOverview = !showMiniOverview }
-                            .padding(horizontal = 4.dp, vertical = 2.dp)
-                    ) {
-                        Icon(Icons.Default.Map, contentDescription = "خريطة التايم لاين", tint = if (showMiniOverview) StudioPurpleLight else TextMuted, modifier = Modifier.size(11.dp))
-                    }
-                }
-
-                // Right: Zoom Controls & Presets
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    // Zoom Presets
-                    listOf(14f to "S", 24f to "M", 40f to "L").forEach { (width, lbl) ->
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(2.dp))
-                                .background(if (frameWidthDp.toInt() == width.toInt()) StudioPurple else Color.Transparent)
-                                .clickable { frameWidthDp = width }
-                                .padding(horizontal = 4.dp, vertical = 1.dp)
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Text(lbl, color = if (frameWidthDp.toInt() == width.toInt()) Color.White else TextMuted, fontSize = 8.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    IconButton(onClick = { frameWidthDp = (frameWidthDp - 4f).coerceAtLeast(12f) }, modifier = Modifier.size(20.dp)) {
-                        Icon(Icons.Default.ZoomOut, contentDescription = "تصغير", tint = TextSecondary, modifier = Modifier.size(12.dp))
-                    }
-                    Text("${frameWidthDp.toInt()}px", color = TextMuted, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
-                    IconButton(onClick = { frameWidthDp = (frameWidthDp + 4f).coerceAtMost(72f) }, modifier = Modifier.size(20.dp)) {
-                        Icon(Icons.Default.ZoomIn, contentDescription = "تكبير", tint = TextSecondary, modifier = Modifier.size(12.dp))
-                    }
-                }
-            }
-
-            // =================================================================
-            // 2. Mini Timeline Overview Navigator Strip
-            // =================================================================
-            if (showMiniOverview) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(18.dp)
-                        .background(Color(0xFF0F0F14))
-                        .border(0.5.dp, StudioBorder)
-                        .pointerInput(totalFrames) {
-                            detectTapGestures { offset ->
-                                val fraction = (offset.x / size.width).coerceIn(0f, 1f)
-                                val targetF = fraction * totalFrames
-                                onFrameSelected(targetF)
-                            }
-                        }
-                        .pointerInput(totalFrames) {
-                            detectDragGestures { change, _ ->
-                                change.consume()
-                                val fraction = (change.position.x / size.width).coerceIn(0f, 1f)
-                                val targetF = fraction * totalFrames
-                                onFrameSelected(targetF)
-                            }
-                        }
-                ) {
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        val w = size.width
-                        val h = size.height
-
-                        // Draw track keyframe mini dots
-                        activeClip.tracks.forEachIndexed { tIdx, track ->
-                            val y = 3f + (tIdx * 2.5f) % (h - 6f)
-                            track.keyframes.forEach { kf ->
-                                val x = (kf.frame.toFloat() / totalFrames) * w
-                                drawCircle(
-                                    color = track.displayColor.copy(alpha = 0.7f),
-                                    radius = 1.5f,
-                                    center = Offset(x, y)
-                                )
-                            }
-                        }
-
-                        // Draw Loop Range in Mini Overview
-                        if (loopRangeStart != null && loopRangeEnd != null) {
-                            val loopX1 = (loopRangeStart.toFloat() / totalFrames) * w
-                            val loopX2 = (loopRangeEnd.toFloat() / totalFrames) * w
-                            drawRect(
-                                color = StudioPurple.copy(alpha = 0.25f),
-                                topLeft = Offset(loopX1, 0f),
-                                size = Size(loopX2 - loopX1, h)
+                            Icon(
+                                imageVector = Icons.Default.Timer,
+                                contentDescription = null,
+                                tint = StudioPurple,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = "Start: 0",
+                                color = TextMuted,
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            Text(
+                                text = "|",
+                                color = EngineBorder,
+                                fontSize = 10.sp
+                            )
+                            Text(
+                                text = "Cur: ${currentFrame.toInt()}",
+                                color = TextPrimary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            Text(
+                                text = "(${String.format("%.2fs", currentFrame / activeClip.fps.coerceAtLeast(1))})",
+                                color = StudioCyan,
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            Text(
+                                text = "|",
+                                color = EngineBorder,
+                                fontSize = 10.sp
+                            )
+                            Text(
+                                text = "End: ${activeClip.durationFrames}",
+                                color = TextMuted,
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace
                             )
                         }
-
-                        // Draw Current Playhead Line in Mini Overview
-                        val playheadMiniX = (currentFrame / totalFrames) * w
-                        drawLine(
-                            color = StudioRed,
-                            start = Offset(playheadMiniX, 0f),
-                            end = Offset(playheadMiniX, h),
-                            strokeWidth = 1.5f
-                        )
                     }
 
-                    // Loop In/Out Buttons overlay
-                    Row(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "نظرة عامة (Overview 0..${totalFrames}f)",
-                            color = TextMuted,
-                            fontSize = 7.5.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-
-                        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(2.dp))
-                                    .background(EngineCardBg)
-                                    .clickable { onSetLoopIn(currentFrame.toInt()) }
-                                    .padding(horizontal = 3.dp, vertical = 1.dp)
-                            ) {
-                                Text("[ In", color = StudioPurpleLight, fontSize = 7.5.sp, fontWeight = FontWeight.Bold)
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(2.dp))
-                                    .background(EngineCardBg)
-                                    .clickable { onSetLoopOut(currentFrame.toInt()) }
-                                    .padding(horizontal = 3.dp, vertical = 1.dp)
-                            ) {
-                                Text("Out ]", color = StudioPurpleLight, fontSize = 7.5.sp, fontWeight = FontWeight.Bold)
-                            }
-
-                            if (loopRangeStart != null || loopRangeEnd != null) {
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(2.dp))
-                                        .background(StudioRed.copy(alpha = 0.2f))
-                                        .clickable { onClearLoopRange() }
-                                        .padding(horizontal = 3.dp, vertical = 1.dp)
-                                ) {
-                                    Text("✕", color = StudioRed, fontSize = 7.5.sp)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // =================================================================
-            // 3. Main Dope Sheet Grid (Left: Headers | Right: Frames & Ruler)
-            // =================================================================
-            Row(modifier = Modifier.fillMaxSize()) {
-                // -------------------------------------------------------------
-                // Left Column: Track Headers with Hierarchy, Focus, Solo, Mute, Lock
-                // -------------------------------------------------------------
-                Column(
-                    modifier = Modifier
-                        .width(136.dp)
-                        .fillMaxHeight()
-                        .background(EngineSurface)
-                        .border(width = 0.5.dp, color = StudioBorder)
-                ) {
-                    // Corner Ruler Label
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(24.dp)
-                            .background(EngineBackground)
-                            .border(0.5.dp, StudioBorder)
-                            .padding(horizontal = 4.dp),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text("المسار / الخاصية", color = TextMuted, fontSize = 8.sp, fontWeight = FontWeight.Bold)
-                            if (selectedKeyframeIds.isNotEmpty()) {
-                                Text("${selectedKeyframeIds.size} محدد", color = StudioPurpleLight, fontSize = 7.5.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-
-                    // Scrollable Track Headers
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(vScrollState)
-                    ) {
-                        // Events Header Row
-                        if (activeClip.events.isNotEmpty()) {
+                    // Loop Range Tag if active
+                    if (loopRangeStart != null || loopRangeEnd != null) {
+                        Surface(
+                            color = StudioPurple.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(4.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, StudioPurple)
+                        ) {
                             Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(22.dp)
-                                    .background(StudioPurpleBg.copy(alpha = 0.4f))
-                                    .padding(horizontal = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.Bolt, contentDescription = null, tint = StudioYellow, modifier = Modifier.size(11.dp))
-                                Spacer(modifier = Modifier.width(3.dp))
-                                Text("الأحداث (${activeClip.events.size})", color = StudioYellow, fontSize = 8.5.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-
-                        // -----------------------------------------------------
-                        // Transform Parent Group Header (Collapsible)
-                        // -----------------------------------------------------
-                        if (transformTracks.isNotEmpty()) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(22.dp)
-                                    .background(EngineCardBg)
-                                    .border(0.3.dp, StudioBorder)
-                                    .clickable { isTransformGroupExpanded = !isTransformGroupExpanded }
-                                    .padding(horizontal = 3.dp),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = if (isTransformGroupExpanded) Icons.Default.ExpandMore else Icons.Default.ChevronRight,
-                                        contentDescription = null,
-                                        tint = StudioPurpleLight,
-                                        modifier = Modifier.size(13.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(2.dp))
-                                    Text("التحول (Transform)", color = TextPrimary, fontSize = 8.5.sp, fontWeight = FontWeight.Bold)
-                                }
-                                Text("${transformTracks.size}", color = TextMuted, fontSize = 7.5.sp, fontFamily = FontFamily.Monospace)
+                                Icon(Icons.Default.Repeat, contentDescription = null, tint = StudioPurple, modifier = Modifier.size(12.dp))
+                                Text("In: ${loopRangeStart ?: 0} Out: ${loopRangeEnd ?: activeClip.durationFrames}", color = StudioPurple, fontSize = 9.sp, fontWeight = FontWeight.SemiBold)
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Clear Range",
+                                    tint = TextSecondary,
+                                    modifier = Modifier
+                                        .size(12.dp)
+                                        .clickable { onClearLoopRange() }
+                                )
                             }
-
-                            if (isTransformGroupExpanded) {
-                                transformTracks.forEach { track ->
-                                    TrackHeaderItem(
-                                        track = track,
-                                        isSelected = track.id == selectedTrackId,
-                                        isDimmed = anyTrackFocused && !track.isFocused,
-                                        currentFrame = currentFrame.toInt(),
-                                        onSelectTrack = { onSelectTrack(track.id) },
-                                        onAddKeyframe = { onAddKeyframeToTrack(track, currentFrame.toInt()) },
-                                        onToggleSolo = { onToggleTrackSolo(track.id) },
-                                        onToggleMute = { onToggleTrackMute(track.id) },
-                                        onToggleLock = { onToggleTrackLock(track.id) },
-                                        onToggleFocus = { onToggleTrackFocus(track.id) }
-                                    )
-                                }
-                            }
-                        }
-
-                        // Other Tracks
-                        otherTracks.forEach { track ->
-                            TrackHeaderItem(
-                                track = track,
-                                isSelected = track.id == selectedTrackId,
-                                isDimmed = anyTrackFocused && !track.isFocused,
-                                currentFrame = currentFrame.toInt(),
-                                onSelectTrack = { onSelectTrack(track.id) },
-                                onAddKeyframe = { onAddKeyframeToTrack(track, currentFrame.toInt()) },
-                                onToggleSolo = { onToggleTrackSolo(track.id) },
-                                onToggleMute = { onToggleTrackMute(track.id) },
-                                onToggleLock = { onToggleTrackLock(track.id) },
-                                onToggleFocus = { onToggleTrackFocus(track.id) }
-                            )
                         }
                     }
                 }
 
-                // -------------------------------------------------------------
-                // Right Column: Clickable/Draggable Ruler & Keyframes Grid Canvas
-                // -------------------------------------------------------------
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .horizontalScroll(hScrollState)
-                        .transformable(state = transformableState)
+                // Center/Right: Contextual Action Buttons depending on selection state
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    // ---------------------------------------------------------
-                    // A. Frame Numbers Ruler Strip (Touch Draggable Scrubber)
-                    // ---------------------------------------------------------
-                    Box(
-                        modifier = Modifier
-                            .width(timelineWidthDp.dp)
-                            .height(24.dp)
-                            .background(EngineBackground)
-                            .border(0.5.dp, StudioBorder)
-                            .pointerInput(frameWidthDp, totalFrames, snapMode) {
-                                detectTapGestures { offset ->
-                                    val rawF = (offset.x / (frameWidthDp * density.density)).coerceIn(0f, totalFrames.toFloat())
-                                    onFrameSelected(calculateSnappedFrame(rawF))
-                                }
-                            }
-                            .pointerInput(frameWidthDp, totalFrames, snapMode) {
-                                detectDragGestures { change, _ ->
-                                    change.consume()
-                                    val rawF = (change.position.x / (frameWidthDp * density.density)).coerceIn(0f, totalFrames.toFloat())
-                                    onFrameSelected(calculateSnappedFrame(rawF))
-                                }
-                            }
-                    ) {
-                        Canvas(modifier = Modifier.fillMaxSize()) {
-                            val pxPerFrame = frameWidthDp.dp.toPx()
+                    when {
+                        // -----------------------------------------------------
+                        // STATE A: Multiple Keyframes Selected
+                        // -----------------------------------------------------
+                        allSelectedKeyframes.size > 1 -> {
+                            val minF = allSelectedKeyframes.minOf { it.second.frame }
+                            val maxF = allSelectedKeyframes.maxOf { it.second.frame }
+                            val span = maxF - minF
 
-                            // Draw Loop Range Highlight
-                            if (loopRangeStart != null && loopRangeEnd != null) {
-                                val x1 = loopRangeStart * pxPerFrame
-                                val x2 = loopRangeEnd * pxPerFrame
-                                drawRect(
-                                    color = StudioPurple.copy(alpha = 0.2f),
-                                    topLeft = Offset(x1, 0f),
-                                    size = Size(x2 - x1, size.height)
+                            // Selection Count Tag
+                            Surface(
+                                color = StudioPurple.copy(alpha = 0.2f),
+                                shape = RoundedCornerShape(4.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, StudioPurple)
+                            ) {
+                                Text(
+                                    text = "Selected: ${allSelectedKeyframes.size} (${span}f span)",
+                                    color = StudioPurple,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                                 )
                             }
 
-                            // Draw ticks & numbers
-                            for (f in 0..totalFrames) {
-                                val x = f * pxPerFrame
-                                val isMajor = f % 5 == 0
-                                val isSecond = activeClip.fps > 0 && f % activeClip.fps == 0
+                            // Stretch / Compress / Smart Retiming
+                            IconButton(
+                                onClick = { onOpenSmartRetiming() },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(Icons.Default.Speed, contentDescription = "Smart Retiming", tint = StudioCyan, modifier = Modifier.size(16.dp))
+                            }
 
-                                drawLine(
-                                    color = if (isSecond) StudioPurpleLight else if (isMajor) TextSecondary else StudioBorder,
-                                    start = Offset(x, if (isSecond) 6f else if (isMajor) 10f else 16f),
-                                    end = Offset(x, size.height),
-                                    strokeWidth = if (isSecond) 1.5f else if (isMajor) 1.0f else 0.5f
-                                )
+                            // Distribute Evenly
+                            IconButton(
+                                onClick = { onDistributeEvenly() },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(Icons.Default.FormatAlignJustify, contentDescription = "Distribute Evenly", tint = TextPrimary, modifier = Modifier.size(16.dp))
+                            }
+
+                            // Reverse Timing
+                            IconButton(
+                                onClick = { onReverseTiming() },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(Icons.Default.SwapHoriz, contentDescription = "Reverse Timing", tint = TextPrimary, modifier = Modifier.size(16.dp))
+                            }
+
+                            // Copy
+                            IconButton(
+                                onClick = { onCopySelectedKeyframes() },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = TextPrimary, modifier = Modifier.size(16.dp))
+                            }
+
+                            // Duplicate
+                            IconButton(
+                                onClick = { onDuplicateSelectedKeyframes() },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(Icons.Default.ControlPointDuplicate, contentDescription = "Duplicate", tint = StudioGreen, modifier = Modifier.size(16.dp))
+                            }
+
+                            // Delete
+                            IconButton(
+                                onClick = { onDeleteSelectedKeyframes() },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(Icons.Default.DeleteOutline, contentDescription = "Delete Keys", tint = StudioRed, modifier = Modifier.size(16.dp))
+                            }
+
+                            // Clear Selection
+                            IconButton(
+                                onClick = { onClearKeyframeSelection() },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(Icons.Default.Close, contentDescription = "Clear Selection", tint = TextMuted, modifier = Modifier.size(16.dp))
                             }
                         }
 
-                        // Render Frame Numbers & Markers Text
-                        Row(modifier = Modifier.fillMaxSize()) {
-                            for (f in 0..totalFrames) {
-                                val isMajor = f % 5 == 0
-                                val isSecond = activeClip.fps > 0 && f % activeClip.fps == 0
-                                val marker = activeClip.markers.find { it.frame == f }
-                                Box(
-                                    modifier = Modifier
-                                        .width(frameWidthDp.dp)
-                                        .fillMaxHeight(),
-                                    contentAlignment = Alignment.TopCenter
-                                ) {
-                                    if (marker != null) {
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(2.dp))
-                                                .background(Color(marker.colorHex))
-                                                .padding(horizontal = 2.dp, vertical = 1.dp)
-                                        ) {
-                                            Text(marker.label, color = Color.Black, fontSize = 6.5.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-                                        }
-                                    } else if (isSecond) {
-                                        Text("${f / activeClip.fps}s", color = StudioPurpleLight, fontSize = 7.5.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
-                                    } else if (isMajor) {
-                                        Text("$f", color = TextMuted, fontSize = 7.sp, fontFamily = FontFamily.Monospace)
-                                    }
-                                }
-                            }
-                        }
-                    }
+                        // -----------------------------------------------------
+                        // STATE B: Single Keyframe Selected
+                        // -----------------------------------------------------
+                        allSelectedKeyframes.size == 1 -> {
+                            val (trk, kf) = allSelectedKeyframes.first()
 
-                    // ---------------------------------------------------------
-                    // B. Tracks & Keyframes Canvas Area
-                    // ---------------------------------------------------------
-                    Box(
-                        modifier = Modifier
-                            .width(timelineWidthDp.dp)
-                            .weight(1f)
-                            .background(EngineCardBg)
-                            .verticalScroll(vScrollState)
-                    ) {
-                        // Vertical Grid Lines for each frame
-                        Canvas(modifier = Modifier.fillMaxSize()) {
-                            val pxPerFrame = frameWidthDp.dp.toPx()
-
-                            // Draw Loop Region in grid
-                            if (loopRangeStart != null && loopRangeEnd != null) {
-                                val x1 = loopRangeStart * pxPerFrame
-                                val x2 = loopRangeEnd * pxPerFrame
-                                drawRect(
-                                    color = StudioPurple.copy(alpha = 0.08f),
-                                    topLeft = Offset(x1, 0f),
-                                    size = Size(x2 - x1, size.height)
+                            // Keyframe Info Tag
+                            Surface(
+                                color = EngineCardBg,
+                                shape = RoundedCornerShape(4.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, StudioCyan)
+                            ) {
+                                Text(
+                                    text = "${trk.name} @ F${kf.frame}: ${String.format("%.1f", kf.value)}",
+                                    color = StudioCyan,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                                 )
                             }
 
-                            for (f in 0..totalFrames) {
-                                val x = f * pxPerFrame
-                                val isMajor = f % 5 == 0
-                                val isSecond = activeClip.fps > 0 && f % activeClip.fps == 0
-                                drawLine(
-                                    color = if (isSecond) StudioPurpleLight.copy(alpha = 0.3f) else if (isMajor) StudioBorder.copy(alpha = 0.35f) else StudioBorder.copy(alpha = 0.12f),
-                                    start = Offset(x, 0f),
-                                    end = Offset(x, size.height),
-                                    strokeWidth = if (isSecond) 0.8f else 0.5f
-                                )
+                            // Direct Edit / Context Menu
+                            IconButton(
+                                onClick = { onKeyframeContextMenu(trk, kf) },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(Icons.Default.Tune, contentDescription = "Edit Keyframe", tint = TextPrimary, modifier = Modifier.size(16.dp))
+                            }
+
+                            // Duplicate
+                            IconButton(
+                                onClick = { onDuplicateSelectedKeyframes() },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(Icons.Default.ControlPointDuplicate, contentDescription = "Duplicate", tint = StudioGreen, modifier = Modifier.size(16.dp))
+                            }
+
+                            // Copy
+                            IconButton(
+                                onClick = { onCopySelectedKeyframes() },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = TextPrimary, modifier = Modifier.size(16.dp))
+                            }
+
+                            // Delete
+                            IconButton(
+                                onClick = { onDeleteSelectedKeyframes() },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(Icons.Default.DeleteOutline, contentDescription = "Delete", tint = StudioRed, modifier = Modifier.size(16.dp))
+                            }
+
+                            IconButton(
+                                onClick = { onClearKeyframeSelection() },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(Icons.Default.Close, contentDescription = "Deselect", tint = TextMuted, modifier = Modifier.size(16.dp))
                             }
                         }
 
-                        // Track Rows Container
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            // Events Strip
-                            if (activeClip.events.isNotEmpty()) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(22.dp)
-                                        .background(StudioPurpleBg.copy(alpha = 0.2f))
-                                ) {
-                                    activeClip.events.forEach { ev ->
-                                        val leftOffset = (ev.frame * frameWidthDp).dp
-                                        Box(
-                                            modifier = Modifier
-                                                .offset(x = leftOffset - 6.dp)
-                                                .align(Alignment.CenterStart)
-                                                .size(16.dp)
-                                                .clip(CircleShape)
-                                                .background(StudioYellow)
-                                                .border(0.5.dp, Color.White, CircleShape),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(Icons.Default.Bolt, contentDescription = ev.name, tint = Color.Black, modifier = Modifier.size(10.dp))
-                                        }
-                                    }
-                                }
-                            }
-
-                            // -------------------------------------------------
-                            // Transform Group Keyframes Row (Collapsed summary or full)
-                            // -------------------------------------------------
-                            if (transformTracks.isNotEmpty()) {
-                                if (!isTransformGroupExpanded) {
-                                    // Render Collapsed Transform Summary Row
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(22.dp)
-                                            .background(StudioPurpleDark.copy(alpha = 0.3f))
-                                            .border(0.3.dp, StudioBorder)
-                                    ) {
-                                        transformAggregatedKeyframes.forEach { (frame, kfList) ->
-                                            val leftOffset = (frame * frameWidthDp).dp
-                                            Box(
-                                                modifier = Modifier
-                                                    .offset(x = leftOffset - 10.dp)
-                                                    .align(Alignment.CenterStart)
-                                                    .size(24.dp)
-                                                    .clickable {
-                                                        val items = kfList.mapNotNull { kf ->
-                                                            val tr = transformTracks.find { it.keyframes.any { k -> k.id == kf.id } }
-                                                            if (tr != null) Pair(tr, kf) else null
-                                                        }
-                                                        if (items.size == 1) {
-                                                            onSelectKeyframe(items[0].second.id, isMultiSelectMode)
-                                                        } else if (items.size > 1) {
-                                                            onKeyframeStackSelected(frame, items)
-                                                        }
-                                                    },
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(12.dp)
-                                                        .clip(RoundedCornerShape(3.dp))
-                                                        .background(StudioPurple)
-                                                        .border(0.5.dp, Color.White, RoundedCornerShape(3.dp)),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Text("${kfList.size}", color = Color.White, fontSize = 7.sp, fontWeight = FontWeight.Bold)
-                                                }
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    // Expanded Transform Rows
-                                    transformTracks.forEach { track ->
-                                        TrackGridRow(
-                                            track = track,
-                                            totalFrames = totalFrames,
-                                            frameWidthDp = frameWidthDp,
-                                            isSelectedTrack = track.id == selectedTrackId,
-                                            isDimmed = anyTrackFocused && !track.isFocused,
-                                            selectedKeyframeIds = selectedKeyframeIds,
-                                            isMultiSelectMode = isMultiSelectMode,
-                                            onSelectTrack = { onSelectTrack(track.id) },
-                                            onSelectKeyframe = onSelectKeyframe,
-                                            onFrameSelected = onFrameSelected,
-                                            onMoveKeyframe = onMoveKeyframe,
-                                            onKeyframeContextMenu = onKeyframeContextMenu,
-                                            onDragFeedback = { dragging, orig, curr, name ->
-                                                isDraggingKeyframe = dragging
-                                                dragOriginalFrame = orig
-                                                dragCurrentFrame = curr
-                                                dragTrackName = name
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-
-                            // Other Tracks Rows
-                            otherTracks.forEach { track ->
-                                TrackGridRow(
-                                    track = track,
-                                    totalFrames = totalFrames,
-                                    frameWidthDp = frameWidthDp,
-                                    isSelectedTrack = track.id == selectedTrackId,
-                                    isDimmed = anyTrackFocused && !track.isFocused,
-                                    selectedKeyframeIds = selectedKeyframeIds,
-                                    isMultiSelectMode = isMultiSelectMode,
-                                    onSelectTrack = { onSelectTrack(track.id) },
-                                    onSelectKeyframe = onSelectKeyframe,
-                                    onFrameSelected = onFrameSelected,
-                                    onMoveKeyframe = onMoveKeyframe,
-                                    onKeyframeContextMenu = onKeyframeContextMenu,
-                                    onDragFeedback = { dragging, orig, curr, name ->
-                                        isDraggingKeyframe = dragging
-                                        dragOriginalFrame = orig
-                                        dragCurrentFrame = curr
-                                        dragTrackName = name
-                                    }
-                                )
-                            }
-                        }
-
-                        // =====================================================
-                        // 4. Draggable Playhead Scrubber Cursor Line
-                        // =====================================================
-                        val playheadOffset = (currentFrame * frameWidthDp).dp
-                        Box(
-                            modifier = Modifier
-                                .offset(x = playheadOffset - 1.dp)
-                                .fillMaxHeight()
-                                .width(2.dp)
-                                .background(StudioRed)
-                        )
-
-                        // Big Touch Scrubber Top Marker (▼) with Expanded Touch Target (44dp x 44dp hit area)
-                        Box(
-                            modifier = Modifier
-                                .offset(x = playheadOffset - 22.dp, y = 0.dp)
-                                .size(44.dp)
-                                .pointerInput(frameWidthDp, totalFrames, snapMode) {
-                                    detectDragGestures { change, _ ->
-                                        change.consume()
-                                        val rawF = (change.position.x / (frameWidthDp * density.density)).coerceIn(0f, totalFrames.toFloat())
-                                        onFrameSelected(calculateSnappedFrame(rawF))
+                        // -----------------------------------------------------
+                        // STATE C: Nothing Selected (Primary Action Bar)
+                        // -----------------------------------------------------
+                        else -> {
+                            // Primary Contextual Add Keyframe Button
+                            Button(
+                                onClick = {
+                                    val targetTrack = activeTrack ?: activeClip.tracks.firstOrNull()
+                                    if (targetTrack != null) {
+                                        onAddKeyframeToTrack(targetTrack, currentFrame.toInt())
                                     }
                                 },
-                            contentAlignment = Alignment.TopCenter
-                        ) {
-                            Canvas(modifier = Modifier.size(14.dp, 10.dp)) {
-                                val path = Path().apply {
-                                    moveTo(0f, 0f)
-                                    lineTo(size.width, 0f)
-                                    lineTo(size.width / 2f, size.height)
-                                    close()
-                                }
-                                drawPath(path = path, color = StudioRed, style = Fill)
-                                drawPath(path = path, color = Color.White, style = Stroke(width = 0.8f))
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = StudioPurple,
+                                    contentColor = Color.White
+                                ),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                shape = RoundedCornerShape(6.dp),
+                                modifier = Modifier.height(28.dp)
+                            ) {
+                                Icon(Icons.Default.AddCircle, contentDescription = null, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = contextualAddKeyLabel,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
+
+                            // Paste (if clipboard active)
+                            IconButton(
+                                onClick = { onPasteKeyframes() },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(Icons.Default.ContentPaste, contentDescription = "Paste Keys", tint = TextPrimary, modifier = Modifier.size(15.dp))
+                            }
+
+                            // Insert Time Action
+                            IconButton(
+                                onClick = { isQuickInsertTimeOpen = true },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(Icons.Default.SpaceBar, contentDescription = "Insert Time", tint = StudioCyan, modifier = Modifier.size(15.dp))
+                            }
+
+                            // Select All Keys
+                            IconButton(
+                                onClick = { onSelectAllKeyframes() },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(Icons.Default.SelectAll, contentDescription = "Select All", tint = TextSecondary, modifier = Modifier.size(15.dp))
+                            }
+
+                            // Multi-Select Mode Toggle
+                            FilterChip(
+                                selected = isMultiSelectMode,
+                                onClick = { isMultiSelectMode = !isMultiSelectMode },
+                                label = { Text("Multi", fontSize = 9.sp) },
+                                leadingIcon = {
+                                    Icon(
+                                        if (isMultiSelectMode) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                },
+                                modifier = Modifier.height(26.dp)
+                            )
+                        }
+                    }
+
+                    // Zoom Fit / Zoom Controls
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        modifier = Modifier
+                            .background(EngineCardBg, RoundedCornerShape(4.dp))
+                            .padding(2.dp)
+                    ) {
+                        IconButton(
+                            onClick = { frameWidthDp = (frameWidthDp - 4f).coerceAtLeast(12f) },
+                            modifier = Modifier.size(22.dp)
+                        ) {
+                            Icon(Icons.Default.Remove, contentDescription = "Zoom Out", tint = TextSecondary, modifier = Modifier.size(12.dp))
+                        }
+                        Text(
+                            text = "${frameWidthDp.toInt()}p",
+                            color = TextMuted,
+                            fontSize = 9.sp,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.clickable { frameWidthDp = 24f }
+                        )
+                        IconButton(
+                            onClick = { frameWidthDp = (frameWidthDp + 4f).coerceAtMost(64f) },
+                            modifier = Modifier.size(22.dp)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = "Zoom In", tint = TextSecondary, modifier = Modifier.size(12.dp))
                         }
                     }
                 }
@@ -809,32 +537,38 @@ fun DopeSheetTimeline(
         }
 
         // =====================================================================
-        // 5. Floating Real-Time Drag Timing HUD
+        // SECTION 2: LIVE DRAG HUD BANNER (Floats when moving keyframes)
         // =====================================================================
-        if (isDraggingKeyframe) {
-            val delta = dragCurrentFrame - dragOriginalFrame
-            val deltaSign = if (delta >= 0) "+$delta" else "$delta"
-            val sec = if (activeClip.fps > 0) dragCurrentFrame.toFloat() / activeClip.fps else 0f
-
-            Box(
+        AnimatedVisibility(
+            visible = isDraggingKeyframe,
+            enter = fadeIn() + slideInVertically(),
+            exit = fadeOut() + slideOutVertically()
+        ) {
+            Surface(
+                color = StudioPurple.copy(alpha = 0.95f),
+                contentColor = Color.White,
+                shape = RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp),
                 modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 34.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(Color(0xE61E1E2E))
-                    .border(1.dp, StudioPurpleLight, RoundedCornerShape(6.dp))
-                    .shadow(8.dp)
-                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .shadow(4.dp)
             ) {
                 Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Icon(Icons.Default.Speed, contentDescription = null, tint = StudioPurpleLight, modifier = Modifier.size(14.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Icon(Icons.Default.TouchApp, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Text(
+                            text = if (allSelectedKeyframes.size > 1) "Moving ${allSelectedKeyframes.size} Keyframes" else "Moving $dragTargetTrackName",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                     Text(
-                        text = "$dragTrackName: F$dragOriginalFrame ➔ F$dragCurrentFrame (Δ $deltaSign frames | ${String.format(java.util.Locale.US, "%.3f", sec)}s)",
-                        color = Color.White,
-                        fontSize = 10.sp,
+                        text = "Frame: $dragDisplayFrame (${if (dragDeltaFrames >= 0) "+$dragDeltaFrames" else "$dragDeltaFrames"} frames)",
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace
                     )
@@ -843,90 +577,502 @@ fun DopeSheetTimeline(
         }
 
         // =====================================================================
-        // 6. Contextual Quick Action Floating Bar (When Keyframes Selected)
+        // SECTION 3: MAIN SPLIT TIMELINE VIEW (TRACK HEADERS + TIMELINE BODY)
         // =====================================================================
-        AnimatedVisibility(
-            visible = selectedKeyframeIds.isNotEmpty(),
-            enter = fadeIn() + slideInVertically { it / 2 },
-            exit = fadeOut() + slideOutVertically { it / 2 },
+        Row(
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 10.dp)
+                .weight(1f)
+                .fillMaxWidth()
         ) {
-            Card(
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xF2181825)),
-                border = androidx.compose.foundation.BorderStroke(1.dp, StudioPurpleLight.copy(alpha = 0.8f)),
-                elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
+            // -----------------------------------------------------------------
+            // LEFT COLUMN: HIERARCHICAL COMPACT TRACK HEADERS (Fixed Width)
+            // -----------------------------------------------------------------
+            Column(
+                modifier = Modifier
+                    .width(135.dp)
+                    .fillMaxHeight()
+                    .background(EngineSurface)
+                    .border(width = 1.dp, color = EngineBorder)
             ) {
+                // Header Top (Tracks Title & Add Track)
                 Row(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(30.dp)
+                        .background(EngineCardBg)
+                        .padding(horizontal = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Selected Count Badge
+                    Text(
+                        text = "TRACKS (${activeClip.tracks.size})",
+                        color = TextMuted,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = { onAddTrack() },
+                            modifier = Modifier.size(20.dp)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = "Add Track", tint = StudioCyan, modifier = Modifier.size(14.dp))
+                        }
+                    }
+                }
+
+                Divider(color = EngineBorder, thickness = 1.dp)
+
+                // Track List Rows (Vertical Scroll synced)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(vScrollState)
+                ) {
+                    // 1. TRANSFORM GROUP HEADER
+                    if (transformTracks.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(28.dp)
+                                .background(if (activeTrack?.category == TrackCategory.TRANSFORM) StudioPurple.copy(alpha = 0.12f) else EngineSurface)
+                                .clickable { isTransformGroupExpanded = !isTransformGroupExpanded }
+                                .padding(horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Icon(
+                                    imageVector = if (isTransformGroupExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight,
+                                    contentDescription = null,
+                                    tint = TextSecondary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.Transform,
+                                    contentDescription = null,
+                                    tint = StudioPurple,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Text(
+                                    text = "Transform",
+                                    color = TextPrimary,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1
+                                )
+                            }
+
+                            // Quick Add Key for Transform Group
+                            IconButton(
+                                onClick = {
+                                    transformTracks.firstOrNull()?.let { onAddKeyframeToTrack(it, currentFrame.toInt()) }
+                                },
+                                modifier = Modifier.size(20.dp)
+                            ) {
+                                Icon(Icons.Default.AddCircleOutline, contentDescription = "Add Transform Key", tint = StudioPurple, modifier = Modifier.size(12.dp))
+                            }
+                        }
+
+                        Divider(color = EngineBorder.copy(alpha = 0.5f), thickness = 0.5.dp)
+
+                        // Transform Child Tracks
+                        if (isTransformGroupExpanded) {
+                            transformTracks.forEach { track ->
+                                TrackHeaderItemRow(
+                                    track = track,
+                                    isSelected = selectedTrackId == track.id,
+                                    onSelect = { onSelectTrack(track.id) },
+                                    onAddKey = { onAddKeyframeToTrack(track, currentFrame.toInt()) },
+                                    onToggleLock = { onToggleTrackLock(track.id) },
+                                    onToggleSolo = { onToggleTrackSolo(track.id) },
+                                    isChild = true
+                                )
+                                Divider(color = EngineBorder.copy(alpha = 0.3f), thickness = 0.5.dp)
+                            }
+                        }
+                    }
+
+                    // 2. OTHER TRACKS (Sprite, Events, Custom Properties)
+                    otherTracks.forEach { track ->
+                        TrackHeaderItemRow(
+                            track = track,
+                            isSelected = selectedTrackId == track.id,
+                            onSelect = { onSelectTrack(track.id) },
+                            onAddKey = { onAddKeyframeToTrack(track, currentFrame.toInt()) },
+                            onToggleLock = { onToggleTrackLock(track.id) },
+                            onToggleSolo = { onToggleTrackSolo(track.id) },
+                            isChild = false
+                        )
+                        Divider(color = EngineBorder.copy(alpha = 0.3f), thickness = 0.5.dp)
+                    }
+
+                    // Bottom Spacer for smooth scrolling
+                    Spacer(modifier = Modifier.height(40.dp))
+                }
+            }
+
+            // -----------------------------------------------------------------
+            // RIGHT COLUMN: TIMELINE RULER & KEYFRAME LANES CANVAS
+            // -----------------------------------------------------------------
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .background(Color(0xFF0F1117))
+                    .transformable(state = transformableState)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .horizontalScroll(hScrollState)
+                ) {
+                    // A. TOP TIME RULER (Frame numbers, markers, loop handles)
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(StudioPurple)
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                            .width(timelineWidthDp.dp)
+                            .height(30.dp)
+                            .background(EngineCardBg)
+                            .pointerInput(Unit) {
+                                detectTapGestures { offset ->
+                                    val targetFrame = (offset.x / (frameWidthDp * density.density)).coerceIn(0f, activeClip.durationFrames.toFloat())
+                                    onFrameSelected(calculateSnappedFrame(targetFrame))
+                                }
+                            }
+                            .pointerInput(Unit) {
+                                detectDragGestures { change, _ ->
+                                    change.consume()
+                                    val targetFrame = (change.position.x / (frameWidthDp * density.density)).coerceIn(0f, activeClip.durationFrames.toFloat())
+                                    onFrameSelected(calculateSnappedFrame(targetFrame))
+                                }
+                            }
                     ) {
-                        Text(
-                            text = "${selectedKeyframeIds.size} محدد",
-                            color = Color.White,
-                            fontSize = 8.5.sp,
-                            fontWeight = FontWeight.Bold
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            val fwPx = frameWidthDp.dp.toPx()
+                            val totalF = activeClip.durationFrames + 8
+
+                            // Draw loop range shading if active
+                            if (loopRangeStart != null || loopRangeEnd != null) {
+                                val rStartPx = (loopRangeStart ?: 0) * fwPx
+                                val rEndPx = (loopRangeEnd ?: activeClip.durationFrames) * fwPx
+                                drawRect(
+                                    color = Color(0x33A855F7),
+                                    topLeft = Offset(rStartPx, 0f),
+                                    size = Size(rEndPx - rStartPx, size.height)
+                                )
+                            }
+
+                            // Frame Ticks
+                            val step = if (frameWidthDp < 16f) 10 else if (frameWidthDp < 30f) 5 else 1
+                            for (f in 0..totalF) {
+                                val x = f * fwPx
+                                val isMajor = f % 5 == 0
+                                val isTen = f % 10 == 0
+
+                                val tickHeight = if (isTen) size.height * 0.7f else if (isMajor) size.height * 0.45f else size.height * 0.25f
+                                drawLine(
+                                    color = if (isTen) Color(0xFF6B7280) else if (isMajor) Color(0xFF4B5563) else Color(0xFF27272A),
+                                    start = Offset(x, size.height - tickHeight),
+                                    end = Offset(x, size.height),
+                                    strokeWidth = if (isTen) 1.5f else 1f
+                                )
+                            }
+                        }
+
+                        // Frame number labels row
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 2.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            val step = if (frameWidthDp < 18f) 10 else 5
+                            val totalF = activeClip.durationFrames + 8
+                            for (f in 0..totalF step step) {
+                                Text(
+                                    text = "$f",
+                                    color = if (f == currentFrame.toInt()) StudioPurple else TextMuted,
+                                    fontSize = 9.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = if (f == currentFrame.toInt()) FontWeight.Bold else FontWeight.Normal,
+                                    modifier = Modifier
+                                        .width((frameWidthDp * step).dp)
+                                        .padding(start = 2.dp, top = 2.dp)
+                                )
+                            }
+                        }
+
+                        // Timeline Markers Pins along ruler
+                        activeClip.markers.forEach { marker ->
+                            val markerXPx = marker.frame * frameWidthDp
+                            Surface(
+                                color = StudioYellow,
+                                shape = RoundedCornerShape(2.dp),
+                                modifier = Modifier
+                                    .offset(x = (markerXPx - 4).dp, y = 2.dp)
+                                    .size(width = 8.dp, height = 12.dp)
+                            ) {}
+                        }
+                    }
+
+                    Divider(color = EngineBorder, thickness = 1.dp)
+
+                    // B. TRACK LANES & KEYFRAME NODES (Vertical scroll synced)
+                    Column(
+                        modifier = Modifier
+                            .width(timelineWidthDp.dp)
+                            .weight(1f)
+                            .verticalScroll(vScrollState)
+                            .pointerInput(Unit) {
+                                // Tap on blank area of timeline moves playhead
+                                detectTapGestures { offset ->
+                                    val targetFrame = (offset.x / (frameWidthDp * density.density)).coerceIn(0f, activeClip.durationFrames.toFloat())
+                                    onFrameSelected(calculateSnappedFrame(targetFrame))
+                                }
+                            }
+                    ) {
+                        // 1. TRANSFORM GROUP ROW (When present)
+                        if (transformTracks.isNotEmpty()) {
+                            // Aggregated summary row
+                            Box(
+                                modifier = Modifier
+                                    .width(timelineWidthDp.dp)
+                                    .height(28.dp)
+                                    .background(if (activeTrack?.category == TrackCategory.TRANSFORM) StudioPurple.copy(alpha = 0.05f) else Color.Transparent)
+                            ) {
+                                // Render Background Grid Lines
+                                TimelineGridLines(
+                                    widthDp = timelineWidthDp,
+                                    frameWidthDp = frameWidthDp,
+                                    totalFrames = totalFrames
+                                )
+
+                                // Aggregated keyframes on group row
+                                val allTransformKeys = transformTracks.flatMap { it.keyframes }.groupBy { it.frame }
+                                allTransformKeys.forEach { (frame, keys) ->
+                                    KeyframeNodeItem(
+                                        frame = frame,
+                                        frameWidthDp = frameWidthDp,
+                                        trackCategory = TrackCategory.TRANSFORM,
+                                        interpolation = keys.firstOrNull()?.interpolation ?: InterpolationType.LINEAR,
+                                        isSelected = keys.any { selectedKeyframeIds.contains(it.id) },
+                                        isMultipleStacked = keys.size > 1,
+                                        stackedCount = keys.size,
+                                        onSelect = {
+                                            if (keys.size == 1) {
+                                                onSelectKeyframe(keys.first().id, isMultiSelectMode)
+                                            } else {
+                                                onKeyframeStackSelected(frame, keys.map { k -> Pair(transformTracks.first { it.keyframes.contains(k) }, k) })
+                                            }
+                                        },
+                                        onDragStart = {
+                                            isDraggingKeyframe = true
+                                            dragDisplayFrame = frame
+                                            dragDeltaFrames = 0
+                                            dragTargetTrackName = "Transform"
+                                        },
+                                        onDragDelta = { deltaF ->
+                                            dragDeltaFrames = deltaF
+                                            dragDisplayFrame = (frame + deltaF).coerceIn(0, activeClip.durationFrames)
+                                        },
+                                        onDragEnd = { deltaF ->
+                                            isDraggingKeyframe = false
+                                            if (deltaF != 0) {
+                                                if (selectedKeyframeIds.isNotEmpty()) {
+                                                    onMoveKeyframesBatch(deltaF)
+                                                } else {
+                                                    keys.forEach { k ->
+                                                        val trk = transformTracks.first { it.keyframes.contains(k) }
+                                                        onMoveKeyframe(trk, k, (k.frame + deltaF).coerceIn(0, activeClip.durationFrames))
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        onLongPress = {
+                                            if (keys.size == 1) {
+                                                val trk = transformTracks.first { it.keyframes.contains(keys.first()) }
+                                                onKeyframeContextMenu(trk, keys.first())
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+
+                            Divider(color = EngineBorder.copy(alpha = 0.5f), thickness = 0.5.dp)
+
+                            // Transform Child Lanes
+                            if (isTransformGroupExpanded) {
+                                transformTracks.forEach { track ->
+                                    TrackLaneItemRow(
+                                        track = track,
+                                        timelineWidthDp = timelineWidthDp,
+                                        frameWidthDp = frameWidthDp,
+                                        totalFrames = totalFrames,
+                                        isSelected = selectedTrackId == track.id,
+                                        selectedKeyframeIds = selectedKeyframeIds,
+                                        isMultiSelectMode = isMultiSelectMode,
+                                        onSelectKeyframe = onSelectKeyframe,
+                                        onKeyframeContextMenu = onKeyframeContextMenu,
+                                        onKeyframeStackSelected = onKeyframeStackSelected,
+                                        onMoveKeyframe = onMoveKeyframe,
+                                        onMoveKeyframesBatch = onMoveKeyframesBatch,
+                                        onDragStateChange = { dragging, delta, targetFrame, trackName ->
+                                            isDraggingKeyframe = dragging
+                                            dragDeltaFrames = delta
+                                            dragDisplayFrame = targetFrame
+                                            dragTargetTrackName = trackName
+                                        }
+                                    )
+                                    Divider(color = EngineBorder.copy(alpha = 0.3f), thickness = 0.5.dp)
+                                }
+                            }
+                        }
+
+                        // 2. OTHER TRACK LANES (Sprite, Events, Custom)
+                        otherTracks.forEach { track ->
+                            TrackLaneItemRow(
+                                track = track,
+                                timelineWidthDp = timelineWidthDp,
+                                frameWidthDp = frameWidthDp,
+                                totalFrames = totalFrames,
+                                isSelected = selectedTrackId == track.id,
+                                selectedKeyframeIds = selectedKeyframeIds,
+                                isMultiSelectMode = isMultiSelectMode,
+                                onSelectKeyframe = onSelectKeyframe,
+                                onKeyframeContextMenu = onKeyframeContextMenu,
+                                onKeyframeStackSelected = onKeyframeStackSelected,
+                                onMoveKeyframe = onMoveKeyframe,
+                                onMoveKeyframesBatch = onMoveKeyframesBatch,
+                                onDragStateChange = { dragging, delta, targetFrame, trackName ->
+                                    isDraggingKeyframe = dragging
+                                    dragDeltaFrames = delta
+                                    dragDisplayFrame = targetFrame
+                                    dragTargetTrackName = trackName
+                                }
+                            )
+                            Divider(color = EngineBorder.copy(alpha = 0.3f), thickness = 0.5.dp)
+                        }
+
+                        // Bottom padding for scroll clearance
+                        Spacer(modifier = Modifier.height(40.dp))
+                    }
+                }
+
+                // =============================================================
+                // C. PROMINENT SCRUBBABLE PLAYHEAD (Overlay traversing full height)
+                // =============================================================
+                val playheadXPx = currentFrame * frameWidthDp
+                val playheadOffsetDp = playheadXPx.dp - hScrollState.value.dp / density.density
+
+                if (playheadOffsetDp >= 0.dp) {
+                    Box(
+                        modifier = Modifier
+                            .offset(x = playheadOffsetDp)
+                            .width(24.dp)
+                            .fillMaxHeight()
+                            .pointerInput(Unit) {
+                                detectDragGestures { change, _ ->
+                                    change.consume()
+                                    val rawScrollX = hScrollState.value.toFloat() / density.density
+                                    val newFrame = ((change.position.x + playheadOffsetDp.toPx() + rawScrollX) / (frameWidthDp * density.density))
+                                        .coerceIn(0f, activeClip.durationFrames.toFloat())
+                                    onFrameSelected(calculateSnappedFrame(newFrame))
+                                }
+                            }
+                    ) {
+                        // Playhead Vertical Line
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .width(2.dp)
+                                .fillMaxHeight()
+                                .background(StudioRed)
                         )
+
+                        // Playhead Top Pointer Head & Badge
+                        Surface(
+                            color = StudioRed,
+                            shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 2.dp, bottomEnd = 2.dp),
+                            shadowElevation = 3.dp,
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .size(width = 16.dp, height = 18.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = "${currentFrame.toInt()}",
+                                    color = Color.White,
+                                    fontSize = 8.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // =========================================================================
+    // SECTION 4: INTEGRATED DOPE SHEET QUICK MODALS
+    // =========================================================================
+
+    // Quick Numeric Frame Jump & Range Edit
+    if (isQuickNumericEditOpen) {
+        DirectFrameInputDialog(
+            currentFrame = currentFrame.toInt(),
+            fps = activeClip.fps,
+            maxFrames = activeClip.durationFrames,
+            onDismiss = { isQuickNumericEditOpen = false },
+            onJumpToFrame = { f ->
+                onFrameSelected(f.toFloat())
+            }
+        )
+    }
+
+    // Quick Insert Time Dialog
+    if (isQuickInsertTimeOpen) {
+        var framesToInsert by remember { mutableIntStateOf(10) }
+        Dialog(onDismissRequest = { isQuickInsertTimeOpen = false }) {
+            Card(
+                shape = RoundedCornerShape(8.dp),
+                colors = CardDefaults.cardColors(containerColor = EngineSurface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, StudioCyan),
+                modifier = Modifier.width(260.dp)
+            ) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Insert Empty Time", color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text("Insert frames at current frame ${currentFrame.toInt()} (shifts downstream keys)", color = TextMuted, fontSize = 9.sp)
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        listOf(5, 10, 15, 24).forEach { count ->
+                            FilterChip(
+                                selected = framesToInsert == count,
+                                onClick = { framesToInsert = count },
+                                label = { Text("+$count f", fontSize = 9.sp) }
+                            )
+                        }
                     }
 
-                    // Copy
-                    IconButton(onClick = onCopySelectedKeyframes, modifier = Modifier.size(26.dp)) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = "نسخ", tint = StudioBlue, modifier = Modifier.size(13.dp))
-                    }
-
-                    // Duplicate
-                    IconButton(onClick = onDuplicateSelectedKeyframes, modifier = Modifier.size(26.dp)) {
-                        Icon(Icons.Default.Layers, contentDescription = "تكرار", tint = StudioGreen, modifier = Modifier.size(13.dp))
-                    }
-
-                    // Retime / Scale Timing
-                    IconButton(onClick = onOpenSmartRetiming, modifier = Modifier.size(26.dp)) {
-                        Icon(Icons.Default.Speed, contentDescription = "إعادة التوقيت", tint = StudioYellow, modifier = Modifier.size(13.dp))
-                    }
-
-                    // Stretch (+1f)
-                    IconButton(onClick = { onStretchTiming(1) }, modifier = Modifier.size(26.dp)) {
-                        Icon(Icons.Default.Add, contentDescription = "تمديد (+1f)", tint = TextSecondary, modifier = Modifier.size(13.dp))
-                    }
-
-                    // Compress (-1f)
-                    IconButton(onClick = { onCompressTiming(1) }, modifier = Modifier.size(26.dp)) {
-                        Icon(Icons.Default.Remove, contentDescription = "ضغط (-1f)", tint = TextSecondary, modifier = Modifier.size(13.dp))
-                    }
-
-                    // Distribute Evenly
-                    IconButton(onClick = onDistributeEvenly, modifier = Modifier.size(26.dp)) {
-                        Icon(Icons.Default.SpaceBar, contentDescription = "توزيع متساوٍ", tint = StudioGreen, modifier = Modifier.size(13.dp))
-                    }
-
-                    // Reverse Timing
-                    IconButton(onClick = onReverseTiming, modifier = Modifier.size(26.dp)) {
-                        Icon(Icons.Default.SwapHoriz, contentDescription = "عكس التوقيت", tint = StudioOrange, modifier = Modifier.size(13.dp))
-                    }
-
-                    // Hold Frame
-                    IconButton(onClick = onHoldKeyframes, modifier = Modifier.size(26.dp)) {
-                        Icon(Icons.Default.Pause, contentDescription = "تثبيت (Hold)", tint = StudioBlue, modifier = Modifier.size(13.dp))
-                    }
-
-                    // Delete
-                    IconButton(onClick = onDeleteSelectedKeyframes, modifier = Modifier.size(26.dp)) {
-                        Icon(Icons.Default.Delete, contentDescription = "حذف", tint = StudioRed, modifier = Modifier.size(13.dp))
-                    }
-
-                    // Clear Selection
-                    IconButton(onClick = onClearKeyframeSelection, modifier = Modifier.size(22.dp)) {
-                        Icon(Icons.Default.Close, contentDescription = "إلغاء التحديد", tint = TextMuted, modifier = Modifier.size(12.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Button(onClick = { isQuickInsertTimeOpen = false }, colors = ButtonDefaults.buttonColors(containerColor = EngineCardBg), modifier = Modifier.weight(1f)) {
+                            Text("Cancel", color = TextSecondary, fontSize = 10.sp)
+                        }
+                        Button(
+                            onClick = {
+                                onStretchTiming(framesToInsert)
+                                isQuickInsertTimeOpen = false
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = StudioCyan),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Insert", color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
@@ -934,232 +1080,362 @@ fun DopeSheetTimeline(
     }
 }
 
-// =============================================================================
-// Helper Sub-composables: Track Header Item & Track Grid Row
-// =============================================================================
-
+// -----------------------------------------------------------------------------
+// HELPER COMPOSABLE: TRACK HEADER ITEM ROW
+// -----------------------------------------------------------------------------
 @Composable
-private fun TrackHeaderItem(
+private fun TrackHeaderItemRow(
     track: TrackData,
     isSelected: Boolean,
-    isDimmed: Boolean,
-    currentFrame: Int,
-    onSelectTrack: () -> Unit,
-    onAddKeyframe: () -> Unit,
-    onToggleSolo: () -> Unit,
-    onToggleMute: () -> Unit,
+    onSelect: () -> Unit,
+    onAddKey: () -> Unit,
     onToggleLock: () -> Unit,
-    onToggleFocus: () -> Unit
+    onToggleSolo: () -> Unit,
+    isChild: Boolean
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(24.dp)
-            .background(if (isSelected) StudioPurpleDark.copy(alpha = 0.8f) else Color.Transparent)
-            .border(0.3.dp, if (isSelected) StudioPurpleLight else StudioBorder.copy(alpha = 0.3f))
-            .clickable { onSelectTrack() }
-            .padding(horizontal = 3.dp),
+            .height(28.dp)
+            .background(if (isSelected) StudioPurple.copy(alpha = 0.18f) else Color.Transparent)
+            .clickable { onSelect() }
+            .padding(start = if (isChild) 14.dp else 6.dp, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        // Track Icon & Name
         Row(
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
             modifier = Modifier.weight(1f)
         ) {
+            // Track Type Icon
+            val icon = when (track.category) {
+                TrackCategory.TRANSFORM -> if (track.name.contains("Pos", true)) Icons.Default.OpenWith else if (track.name.contains("Rot", true)) Icons.Default.RotateRight else Icons.Default.AspectRatio
+                TrackCategory.SPRITE -> Icons.Default.Image
+                TrackCategory.VISUAL -> Icons.Default.Palette
+                TrackCategory.AUDIO -> Icons.Default.VolumeUp
+                TrackCategory.EVENTS -> Icons.Default.Bolt
+                else -> Icons.Default.Tune
+            }
             Icon(
-                track.iconVector,
+                imageVector = icon,
                 contentDescription = null,
-                tint = if (isDimmed) TextMuted else track.displayColor,
-                modifier = Modifier.size(10.dp)
+                tint = if (isSelected) StudioPurple else TextSecondary,
+                modifier = Modifier.size(12.dp)
             )
-            Spacer(modifier = Modifier.width(3.dp))
+
+            // Track Name
             Text(
                 text = track.name,
-                color = if (isDimmed) TextMuted else if (isSelected) Color.White else TextPrimary,
-                fontSize = 8.sp,
+                color = if (isSelected) TextPrimary else TextSecondary,
+                fontSize = 10.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }
 
-        // Action Icons: Focus, Mute, Lock, Add Keyframe
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(1.dp)) {
-            // Focus Button 🎯
-            IconButton(onClick = onToggleFocus, modifier = Modifier.size(16.dp)) {
-                Icon(
-                    imageVector = if (track.isFocused) Icons.Default.FilterCenterFocus else Icons.Default.CenterFocusWeak,
-                    contentDescription = "تركيز",
-                    tint = if (track.isFocused) StudioYellow else TextMuted.copy(alpha = 0.4f),
-                    modifier = Modifier.size(9.dp)
-                )
+        // Action Icons (Add Key & Lock)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(
+                onClick = onAddKey,
+                modifier = Modifier.size(18.dp)
+            ) {
+                Icon(Icons.Default.AddCircleOutline, contentDescription = "Add Key", tint = if (isSelected) StudioPurple else TextMuted, modifier = Modifier.size(11.dp))
             }
-
-            // Mute Button 👁 / 🔇
-            IconButton(onClick = onToggleMute, modifier = Modifier.size(16.dp)) {
+            IconButton(
+                onClick = onToggleLock,
+                modifier = Modifier.size(18.dp)
+            ) {
                 Icon(
-                    imageVector = if (track.isMuted) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                    contentDescription = "كتم",
-                    tint = if (track.isMuted) StudioRed else TextMuted.copy(alpha = 0.4f),
-                    modifier = Modifier.size(9.dp)
+                    imageVector = if (track.isLocked) Icons.Default.Lock else Icons.Default.LockOpen,
+                    contentDescription = "Lock",
+                    tint = if (track.isLocked) StudioYellow else TextMuted.copy(alpha = 0.5f),
+                    modifier = Modifier.size(11.dp)
                 )
-            }
-
-            // Add Keyframe on Track Button
-            IconButton(onClick = onAddKeyframe, modifier = Modifier.size(16.dp)) {
-                Icon(Icons.Default.AddCircleOutline, contentDescription = "إضافة فريم", tint = track.displayColor, modifier = Modifier.size(10.dp))
             }
         }
     }
 }
 
+// -----------------------------------------------------------------------------
+// HELPER COMPOSABLE: TRACK LANE ITEM ROW (Grid + Keyframes)
+// -----------------------------------------------------------------------------
 @Composable
-private fun TrackGridRow(
+private fun TrackLaneItemRow(
     track: TrackData,
-    totalFrames: Int,
+    timelineWidthDp: Float,
     frameWidthDp: Float,
-    isSelectedTrack: Boolean,
-    isDimmed: Boolean,
+    totalFrames: Int,
+    isSelected: Boolean,
     selectedKeyframeIds: Set<String>,
     isMultiSelectMode: Boolean,
-    onSelectTrack: () -> Unit,
     onSelectKeyframe: (String, Boolean) -> Unit,
-    onFrameSelected: (Float) -> Unit,
-    onMoveKeyframe: (TrackData, KeyframeData, Int) -> Unit,
     onKeyframeContextMenu: (TrackData, KeyframeData) -> Unit,
-    onDragFeedback: (isDragging: Boolean, originalFrame: Int, currentFrame: Int, trackName: String) -> Unit
+    onKeyframeStackSelected: (Int, List<Pair<TrackData, KeyframeData>>) -> Unit,
+    onMoveKeyframe: (TrackData, KeyframeData, Int) -> Unit,
+    onMoveKeyframesBatch: (Int) -> Unit,
+    onDragStateChange: (Boolean, Int, Int, String) -> Unit
 ) {
-    val density = LocalDensity.current
-
     Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .height(24.dp)
-            .background(
-                if (isSelectedTrack) StudioPurpleGlass
-                else if (isDimmed) Color.Black.copy(alpha = 0.25f)
-                else Color.Transparent
-            )
-            .border(0.3.dp, StudioBorder.copy(alpha = 0.25f))
+            .width(timelineWidthDp.dp)
+            .height(28.dp)
+            .background(if (isSelected) StudioPurple.copy(alpha = 0.05f) else Color.Transparent)
     ) {
-        // Draw connection lines between keyframes
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val pxPerFrame = frameWidthDp.dp.toPx()
-            val centerY = size.height / 2f
-            val sortedKf = track.keyframes.sortedBy { it.frame }
-            if (sortedKf.size >= 2) {
-                for (i in 0 until sortedKf.size - 1) {
-                    val x1 = sortedKf[i].frame * pxPerFrame
-                    val x2 = sortedKf[i + 1].frame * pxPerFrame
-                    val isHold = sortedKf[i].interpolation == InterpolationType.CONSTANT
-                    drawLine(
-                        color = (if (isDimmed) TextMuted else track.displayColor).copy(alpha = 0.45f),
-                        start = Offset(x1, centerY),
-                        end = Offset(x2, centerY),
-                        strokeWidth = if (isHold) 2.0f else 1.2f
-                    )
+        // Grid Lines
+        TimelineGridLines(
+            widthDp = timelineWidthDp,
+            frameWidthDp = frameWidthDp,
+            totalFrames = totalFrames
+        )
+
+        // Hold Bars / Interpolation Lines connecting keyframes
+        if (track.keyframes.size > 1) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val sortedKeys = track.keyframes.sortedBy { it.frame }
+                val fwPx = frameWidthDp.dp.toPx()
+                for (i in 0 until sortedKeys.size - 1) {
+                    val k1 = sortedKeys[i]
+                    val k2 = sortedKeys[i + 1]
+                    val x1 = k1.frame * fwPx
+                    val x2 = k2.frame * fwPx
+                    val y = size.height / 2f
+
+                    if (k1.interpolation == InterpolationType.CONSTANT || track.category == TrackCategory.SPRITE) {
+                        // Solid Hold bar for stepped/sprite frames
+                        drawLine(
+                            color = StudioCyan.copy(alpha = 0.5f),
+                            start = Offset(x1, y),
+                            end = Offset(x2, y),
+                            strokeWidth = 2.dp.toPx()
+                        )
+                    } else {
+                        // Subtle dashed or thin curve line
+                        drawLine(
+                            color = StudioPurple.copy(alpha = 0.35f),
+                            start = Offset(x1, y),
+                            end = Offset(x2, y),
+                            strokeWidth = 1.dp.toPx()
+                        )
+                    }
                 }
             }
         }
 
-        // Render Keyframes with Large Touch Hitbox (44dp target) & Visual Feedback
-        track.keyframes.forEach { kf ->
-            val isSelectedKf = selectedKeyframeIds.contains(kf.id)
-            val isHoldKf = kf.interpolation == InterpolationType.CONSTANT
-            val leftOffset = (kf.frame * frameWidthDp).dp
-
-            var dragCurrentF by remember(kf.frame) { mutableIntStateOf(kf.frame) }
-
-            Box(
-                modifier = Modifier
-                    .offset(x = leftOffset - 22.dp)
-                    .align(Alignment.CenterStart)
-                    .size(44.dp) // Touch-First 44dp hitbox!
-                    .pointerInput(kf.id, track.id, isMultiSelectMode) {
-                        detectTapGestures(
-                            onTap = {
-                                onSelectKeyframe(kf.id, isMultiSelectMode)
-                                onFrameSelected(kf.frame.toFloat())
-                            },
-                            onLongPress = {
-                                onSelectKeyframe(kf.id, false)
-                                onKeyframeContextMenu(track, kf)
-                            }
-                        )
-                    }
-                    .pointerInput(kf.id, track.id) {
-                        detectDragGestures(
-                            onDragStart = {
-                                dragCurrentF = kf.frame
-                                onDragFeedback(true, kf.frame, kf.frame, track.name)
-                            },
-                            onDragEnd = {
-                                onDragFeedback(false, kf.frame, dragCurrentF, track.name)
-                                if (dragCurrentF != kf.frame) {
-                                    onMoveKeyframe(track, kf, dragCurrentF)
-                                }
-                            },
-                            onDragCancel = {
-                                onDragFeedback(false, kf.frame, kf.frame, track.name)
-                            },
-                            onDrag = { change, dragAmount ->
-                                change.consume()
-                                val deltaFrames = dragAmount.x / (frameWidthDp * density.density)
-                                val newTarget = (dragCurrentF + deltaFrames.roundToInt()).coerceIn(0, totalFrames)
-                                if (newTarget != dragCurrentF) {
-                                    dragCurrentF = newTarget
-                                    onDragFeedback(true, kf.frame, dragCurrentF, track.name)
-                                }
-                            }
-                        )
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                // Visual Diamond / Square / Sprite
-                Canvas(modifier = Modifier.size(if (isSelectedKf) 14.dp else 11.dp)) {
-                    val w = size.width
-                    val h = size.height
-
-                    if (isHoldKf) {
-                        // Square for Hold Keyframe
-                        drawRect(
-                            color = if (isSelectedKf) Color.White else track.displayColor,
-                            topLeft = Offset(1f, 1f),
-                            size = Size(w - 2f, h - 2f),
-                            style = Fill
-                        )
-                        drawRect(
-                            color = if (isSelectedKf) StudioPurple else Color.Black.copy(alpha = 0.6f),
-                            topLeft = Offset(1f, 1f),
-                            size = Size(w - 2f, h - 2f),
-                            style = Stroke(width = if (isSelectedKf) 2.0f else 0.8f)
-                        )
+        // Keyframe Nodes on this Track
+        val groupedKeys = track.keyframes.groupBy { it.frame }
+        groupedKeys.forEach { (frame, keys) ->
+            val kf = keys.first()
+            KeyframeNodeItem(
+                frame = frame,
+                frameWidthDp = frameWidthDp,
+                trackCategory = track.category,
+                interpolation = kf.interpolation,
+                isSelected = keys.any { selectedKeyframeIds.contains(it.id) },
+                isMultipleStacked = keys.size > 1,
+                stackedCount = keys.size,
+                onSelect = {
+                    if (keys.size == 1) {
+                        onSelectKeyframe(kf.id, isMultiSelectMode)
                     } else {
-                        // Diamond for Normal/Ease Keyframe
-                        val path = Path().apply {
-                            moveTo(w / 2f, 1f)
-                            lineTo(w - 1f, h / 2f)
-                            lineTo(w / 2f, h - 1f)
-                            lineTo(1f, h / 2f)
-                            close()
-                        }
-
-                        // Diamond fill
-                        drawPath(
-                            path = path,
-                            color = if (isSelectedKf) Color.White else track.displayColor,
-                            style = Fill
-                        )
-
-                        // Diamond stroke
-                        drawPath(
-                            path = path,
-                            color = if (isSelectedKf) StudioPurple else Color.Black.copy(alpha = 0.6f),
-                            style = Stroke(width = if (isSelectedKf) 2.0f else 0.8f)
-                        )
+                        onKeyframeStackSelected(frame, keys.map { Pair(track, it) })
                     }
+                },
+                onDragStart = {
+                    onDragStateChange(true, 0, frame, track.name)
+                },
+                onDragDelta = { deltaF ->
+                    onDragStateChange(true, deltaF, (frame + deltaF).coerceIn(0, totalFrames), track.name)
+                },
+                onDragEnd = { deltaF ->
+                    onDragStateChange(false, 0, 0, "")
+                    if (deltaF != 0) {
+                        if (selectedKeyframeIds.contains(kf.id) && selectedKeyframeIds.size > 1) {
+                            onMoveKeyframesBatch(deltaF)
+                        } else {
+                            onMoveKeyframe(track, kf, (kf.frame + deltaF).coerceIn(0, totalFrames))
+                        }
+                    }
+                },
+                onLongPress = {
+                    onKeyframeContextMenu(track, kf)
                 }
+            )
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
+// HELPER COMPOSABLE: BACKGROUND GRID LINES
+// -----------------------------------------------------------------------------
+@Composable
+private fun TimelineGridLines(
+    widthDp: Float,
+    frameWidthDp: Float,
+    totalFrames: Int
+) {
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val fwPx = frameWidthDp.dp.toPx()
+        val totalF = totalFrames + 8
+        for (f in 0..totalF) {
+            val x = f * fwPx
+            val isMajor = f % 5 == 0
+            val isTen = f % 10 == 0
+            drawLine(
+                color = if (isTen) Color(0xFF2D3748) else if (isMajor) Color(0xFF212631) else Color(0xFF161922),
+                start = Offset(x, 0f),
+                end = Offset(x, size.height),
+                strokeWidth = if (isTen) 1f else 0.5f
+            )
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
+// HELPER COMPOSABLE: TOUCH-FIRST SHAPE-CODED KEYFRAME NODE
+// -----------------------------------------------------------------------------
+@Composable
+private fun KeyframeNodeItem(
+    frame: Int,
+    frameWidthDp: Float,
+    trackCategory: TrackCategory,
+    interpolation: InterpolationType,
+    isSelected: Boolean,
+    isMultipleStacked: Boolean,
+    stackedCount: Int,
+    onSelect: () -> Unit,
+    onDragStart: () -> Unit,
+    onDragDelta: (Int) -> Unit,
+    onDragEnd: (Int) -> Unit,
+    onLongPress: () -> Unit
+) {
+    val density = LocalDensity.current
+    var dragAccumulatedPx by remember { mutableFloatStateOf(0f) }
+
+    // Generous 36dp invisible touch target container centered exactly on frame
+    Box(
+        modifier = Modifier
+            .offset(x = (frame * frameWidthDp - 18).dp, y = 0.dp)
+            .size(width = 36.dp, height = 28.dp)
+            .pointerInput(frame, isSelected) {
+                detectTapGestures(
+                    onTap = { onSelect() },
+                    onLongPress = { onLongPress() }
+                )
+            }
+            .pointerInput(frame, isSelected) {
+                detectDragGestures(
+                    onDragStart = {
+                        dragAccumulatedPx = 0f
+                        onDragStart()
+                    },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        dragAccumulatedPx += dragAmount.x
+                        val frameStepPx = frameWidthDp * density.density
+                        val deltaFrames = (dragAccumulatedPx / frameStepPx).roundToInt()
+                        onDragDelta(deltaFrames)
+                    },
+                    onDragEnd = {
+                        val frameStepPx = frameWidthDp * density.density
+                        val deltaFrames = (dragAccumulatedPx / frameStepPx).roundToInt()
+                        onDragEnd(deltaFrames)
+                    },
+                    onDragCancel = {
+                        onDragEnd(0)
+                    }
+                )
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        // Visual Shape representation
+        Canvas(modifier = Modifier.size(16.dp)) {
+            val center = Offset(size.width / 2f, size.height / 2f)
+            val baseColor = when (trackCategory) {
+                TrackCategory.TRANSFORM -> Color(0xFFA855F7) // Purple
+                TrackCategory.SPRITE -> Color(0xFF38BDF8)    // Cyan
+                TrackCategory.VISUAL -> Color(0xFFFBBF24)    // Amber
+                TrackCategory.AUDIO -> Color(0xFF10B981)     // Emerald
+                TrackCategory.EVENTS -> Color(0xFFEC4899)    // Pink
+                else -> Color(0xFF10B981)                   // Emerald
+            }
+
+            val strokeColor = if (isSelected) Color.White else Color(0xFF0F1117)
+            val strokeWidth = if (isSelected) 2.dp.toPx() else 1.dp.toPx()
+
+            // Glow Halo when selected
+            if (isSelected) {
+                drawCircle(
+                    color = StudioPurple.copy(alpha = 0.35f),
+                    radius = size.width * 0.9f,
+                    center = center
+                )
+            }
+
+            when (trackCategory) {
+                // Circular Visual / Audio keyframe
+                TrackCategory.VISUAL, TrackCategory.AUDIO -> {
+                    drawCircle(color = baseColor, radius = 5.dp.toPx(), center = center)
+                    drawCircle(color = strokeColor, radius = 5.dp.toPx(), center = center, style = Stroke(strokeWidth))
+                }
+                // Square Sprite frame
+                TrackCategory.SPRITE -> {
+                    drawRect(
+                        color = baseColor,
+                        topLeft = Offset(center.x - 4.dp.toPx(), center.y - 4.dp.toPx()),
+                        size = Size(8.dp.toPx(), 8.dp.toPx())
+                    )
+                    drawRect(
+                        color = strokeColor,
+                        topLeft = Offset(center.x - 4.dp.toPx(), center.y - 4.dp.toPx()),
+                        size = Size(8.dp.toPx(), 8.dp.toPx()),
+                        style = Stroke(strokeWidth)
+                    )
+                }
+                // Triangle Event keyframe
+                TrackCategory.EVENTS -> {
+                    val path = Path().apply {
+                        moveTo(center.x, center.y - 5.dp.toPx())
+                        lineTo(center.x + 5.dp.toPx(), center.y + 4.dp.toPx())
+                        lineTo(center.x - 5.dp.toPx(), center.y + 4.dp.toPx())
+                        close()
+                    }
+                    drawPath(path, color = baseColor, style = Fill)
+                    drawPath(path, color = strokeColor, style = Stroke(strokeWidth))
+                }
+                // Diamond Rotation & General Transform keyframe
+                else -> {
+                    val path = Path().apply {
+                        moveTo(center.x, center.y - 5.5.dp.toPx())
+                        lineTo(center.x + 5.5.dp.toPx(), center.y)
+                        lineTo(center.x, center.y + 5.5.dp.toPx())
+                        lineTo(center.x - 5.5.dp.toPx(), center.y)
+                        close()
+                    }
+                    drawPath(path, color = baseColor, style = Fill)
+                    drawPath(path, color = strokeColor, style = Stroke(strokeWidth))
+                }
+            }
+        }
+
+        // Multiple stacked keyframe counter badge
+        if (isMultipleStacked) {
+            Surface(
+                color = StudioYellow,
+                shape = CircleShape,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = (-4).dp, y = 2.dp)
+                    .size(11.dp)
+            ) {
+                Text(
+                    text = "$stackedCount",
+                    color = Color.Black,
+                    fontSize = 7.sp,
+                    fontWeight = FontWeight.Black,
+                    textAlign = TextAlign.Center
+                )
             }
         }
     }
