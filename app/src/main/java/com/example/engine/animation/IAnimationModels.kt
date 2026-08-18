@@ -47,11 +47,11 @@ enum class TrackCategory(val label: String, val iconColor: Color) {
     CUSTOM("Custom", StudioPink)
 }
 
-enum class SnapMode {
-    SNAP_FRAME,
-    SNAP_KEYFRAME,
-    SNAP_MARKER,
-    FREE_MOVE
+enum class SnapMode(val label: String, val iconName: String) {
+    SNAP_FRAME("Frame Snap", "إطارات"),
+    SNAP_KEYFRAME("Keyframe Snap", "مفاتيح"),
+    SNAP_MARKER("Marker Snap", "علامات"),
+    FREE_MOVE("Free / No Snap", "حر")
 }
 
 // =============================================================================
@@ -85,6 +85,10 @@ data class TrackData(
     var isVisible: Boolean = true,
     var isLocked: Boolean = false,
     var isExpanded: Boolean = true,
+    var isMuted: Boolean = false,
+    var isSolo: Boolean = false,
+    var isFocused: Boolean = false,
+    var parentGroup: String? = null,
     val keyframes: MutableList<KeyframeData> = mutableListOf()
 ) {
     val displayColor: Color
@@ -151,6 +155,19 @@ data class ClipData(
 ) {
     val durationSeconds: Float
         get() = if (fps > 0) durationFrames.toFloat() / fps else 0f
+}
+
+data class KeyframeClipboardItem(
+    val trackId: String,
+    val relativeFrame: Int,
+    val keyframe: KeyframeData
+)
+
+data class RangeSelectionData(
+    val startFrame: Int,
+    val endFrame: Int
+) {
+    val durationFrames: Int get() = (endFrame - startFrame).coerceAtLeast(0) + 1
 }
 
 // =============================================================================

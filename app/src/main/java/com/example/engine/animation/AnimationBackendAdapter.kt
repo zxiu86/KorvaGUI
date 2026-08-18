@@ -1,6 +1,7 @@
 package com.example.engine.animation
 
 import kotlin.math.pow
+import kotlin.math.roundToInt
 
 class MockAnimationBackend(
     val eventBus: AnimationEventBus = AnimationEventBus(),
@@ -576,6 +577,332 @@ class MockAnimationBackend(
     override fun removeMarker(clipId: String, markerId: String): Boolean {
         val clip = _clips.find { it.id == clipId } ?: return false
         return clip.markers.removeAll { it.id == markerId }
+    }
+
+    // =========================================================================
+    // Advanced Timing & Batch Manipulation Engine
+    // =========================================================================
+
+    fun moveSelectedKeyframes(clipId: String, keyframeIds: Set<String>, deltaFrames: Int): Boolean {
+        if (deltaFrames == 0 || keyframeIds.isEmpty()) return false
+        val clip = _clips.find { it.id == clipId } ?: return false
+
+        val moveRecords = mutableListOf<BatchMoveKeyframesCommand.KeyframeMoveRecord>()
+        clip.tracks.forEach { track ->
+            track.keyframes.filter { keyframeIds.contains(it.id) }.forEach { kf ->
+                val targetFrame = (kf.frame + deltaFrames).coerceIn(0, clip.durationFrames + 100)
+                moveRecords.add(BatchMoveKeyframesCommand.KeyframeMoveRecord(track.id, kf.id, kf.frame, targetFrame))
+            }
+        }
+
+        if (moveRecords.isEmpty()) return false
+        return commandHistory.execute(BatchMoveKeyframesCommand(clip, moveRecords) {
+            eventBus.emit(AnimationEngineEvent.TrackChanged(clipId))
+        })
+    }
+
+    fun deleteSelectedKeyframes(clipId: String, keyframeIds: Set<String>): Boolean {
+        if (keyframeIds.isEmpty()) return false
+        val clip = _clips.find { it.id == clipId } ?: return false
+
+        val deletedItems = mutableListOf<Pair<String, KeyframeData>>()
+        clip.tracks.forEach { track ->
+            track.keyframes.filter { keyframeIds.contains(it.id) }.forEach { kf ->
+                deletedItems.add(Pair(track.id, kf.copy()))
+            }
+        }
+
+        if (deletedItems.isEmpty()) return false
+        return commandHistory.execute(BatchDeleteKeyframesCommand(clip, deletedItems) {
+            eventBus.emit(AnimationEngineEvent.TrackChanged(clipId))
+        })
+    }
+
+    var clipboardItems: List<KeyframeClipboardItem> = emptyList()
+
+    fun copySelectedKeyframes(clipId: String, keyframeIds: Set<String>): Int {
+        val clip = _clips.find { it.id == clipId } ?: return 0
+        val selectedKeys = mutableListOf<Pair<String, KeyframeData>>()
+
+        clip.tracks.forEach { track ->
+            track.keyframes.filter { keyframeIds.contains(it.id) }.forEach { kf ->
+                selectedKeys.add(Pair(track.id, kf))
+            }
+        }
+
+        if (selectedKeys.isEmpty()) return 0
+        val minFrame = selectedKeys.minOf { it.second.frame }
+
+        clipboardItems = selectedKeys.map { (trackId, kf) ->
+            KeyframeClipboardItem(
+                trackId = trackId,
+                relativeFrame = kf.frame - minFrame,
+                keyframe = kf.copy(id = java.util.UUID.randomUUID().toString())
+            )
+        }
+        return clipboardItems.size
+    }
+
+    fun pasteKeyframesAt(clipId: String, targetFrame: Int): Set<String> {
+        if (clipboardItems.isEmpty()) return emptySet()
+        val clip = _clips.find { it.id == clipId } ?: return emptySet()
+
+        val itemsToAdd = mutableListOf<Pair<String, KeyframeData>>()
+        val newIds = mutableSetOf<String>()
+
+        clipboardItems.forEach { item ->
+            val newFrame = targetFrame + item.relativeFrame
+            val newKf = item.keyframe.copy(
+                id = java.util.UUID.randomUUID().toString(),
+                frame = newFrame
+            )
+            itemsToAdd.add(Pair(item.trackId, newKf))
+            newIds.add(newKf.id)
+        }
+
+        val maxTargetFrame = itemsToAdd.maxOfOrNull { it.second.frame } ?: clip.durationFrames
+        if (maxTargetFrame > clip.durationFrames) {
+            clip.durationFrames = maxTargetFrame
+        }
+
+        commandHistory.execute(BatchAddKeyframesCommand(clip, itemsToAdd) {
+            eventBus.emit(AnimationEngineEvent.TrackChanged(clipId))
+        })
+        return newIds
+    }
+
+    fun duplicateSelectedKeyframes(clipId: String, keyframeIds: Set<String>, offsetFrames: Int = 1): Set<String> {
+        val clip = _clips.find { it.id == clipId } ?: return emptySet()
+        val selected = mutableListOf<Pair<String, KeyframeData>>()
+
+        clip.tracks.forEach { track ->
+            track.keyframes.filter { keyframeIds.contains(it.id) }.forEach { kf ->
+                selected.add(Pair(track.id, kf))
+            }
+        }
+
+        if (selected.isEmpty()) return emptySet()
+        val maxSelectedFrame = selected.maxOf { it.second.frame }
+        val minSelectedFrame = selected.minOf { it.second.frame }
+        val span = (maxSelectedFrame - minSelectedFrame) + offsetFrames
+
+        val itemsToAdd = mutableListOf<Pair<String, KeyframeData>>()
+        val newIds = mutableSetOf<String>()
+
+        selected.forEach { (trackId, kf) ->
+            val newFrame = kf.frame + span
+            val dupKf = kf.copy(
+                id = java.util.UUID.randomUUID().toString(),
+                frame = newFrame
+            )
+            itemsToAdd.add(Pair(trackId, dupKf))
+            newIds.add(dupKf.id)
+        }
+
+        val maxTargetFrame = itemsToAdd.maxOfOrNull { it.second.frame } ?: clip.durationFrames
+        if (maxTargetFrame > clip.durationFrames) {
+            clip.durationFrames = maxTargetFrame
+        }
+
+        commandHistory.execute(BatchAddKeyframesCommand(clip, itemsToAdd) {
+            eventBus.emit(AnimationEngineEvent.TrackChanged(clipId))
+        })
+        return newIds
+    }
+
+    fun scaleKeyframesTiming(clipId: String, keyframeIds: Set<String>, scaleFactor: Float): Boolean {
+        if (keyframeIds.size < 2 || scaleFactor <= 0.05f) return false
+        val clip = _clips.find { it.id == clipId } ?: return false
+
+        val selectedKeys = mutableListOf<Pair<String, KeyframeData>>()
+        clip.tracks.forEach { track ->
+            track.keyframes.filter { keyframeIds.contains(it.id) }.forEach { kf ->
+                selectedKeys.add(Pair(track.id, kf))
+            }
+        }
+
+        if (selectedKeys.size < 2) return false
+        val minFrame = selectedKeys.minOf { it.second.frame }
+
+        val records = selectedKeys.map { (trackId, kf) ->
+            val rel = kf.frame - minFrame
+            val newRel = (rel * scaleFactor).roundToInt()
+            ScaleKeyframesTimingCommand.KeyframeScaleRecord(
+                trackId = trackId,
+                keyframeId = kf.id,
+                oldFrame = kf.frame,
+                newFrame = minFrame + newRel
+            )
+        }
+
+        return commandHistory.execute(ScaleKeyframesTimingCommand(clip, records) {
+            eventBus.emit(AnimationEngineEvent.TrackChanged(clipId))
+        })
+    }
+
+    fun scaleKeyframesToDuration(clipId: String, keyframeIds: Set<String>, targetDuration: Int): Boolean {
+        if (keyframeIds.size < 2 || targetDuration < 1) return false
+        val clip = _clips.find { it.id == clipId } ?: return false
+
+        val selectedKeys = mutableListOf<Pair<String, KeyframeData>>()
+        clip.tracks.forEach { track ->
+            track.keyframes.filter { keyframeIds.contains(it.id) }.forEach { kf ->
+                selectedKeys.add(Pair(track.id, kf))
+            }
+        }
+
+        if (selectedKeys.size < 2) return false
+        val minFrame = selectedKeys.minOf { it.second.frame }
+        val maxFrame = selectedKeys.maxOf { it.second.frame }
+        val originalDuration = (maxFrame - minFrame).coerceAtLeast(1)
+
+        val scaleFactor = targetDuration.toFloat() / originalDuration.toFloat()
+        return scaleKeyframesTiming(clipId, keyframeIds, scaleFactor)
+    }
+
+    fun distributeKeyframesEvenly(clipId: String, keyframeIds: Set<String>): Boolean {
+        if (keyframeIds.size < 3) return false
+        val clip = _clips.find { it.id == clipId } ?: return false
+
+        val records = mutableListOf<DistributeKeyframesCommand.KeyframeDistributionRecord>()
+
+        clip.tracks.forEach { track ->
+            val keysOnTrack = track.keyframes.filter { keyframeIds.contains(it.id) }.sortedBy { it.frame }
+            if (keysOnTrack.size >= 3) {
+                val minF = keysOnTrack.first().frame
+                val maxF = keysOnTrack.last().frame
+                val count = keysOnTrack.size
+                val step = (maxF - minF).toFloat() / (count - 1).toFloat()
+
+                keysOnTrack.forEachIndexed { idx, kf ->
+                    val newF = (minF + idx * step).roundToInt()
+                    records.add(DistributeKeyframesCommand.KeyframeDistributionRecord(track.id, kf.id, kf.frame, newF))
+                }
+            }
+        }
+
+        if (records.isEmpty()) return false
+        return commandHistory.execute(DistributeKeyframesCommand(clip, records) {
+            eventBus.emit(AnimationEngineEvent.TrackChanged(clipId))
+        })
+    }
+
+    fun reverseKeyframesTiming(clipId: String, keyframeIds: Set<String>): Boolean {
+        if (keyframeIds.size < 2) return false
+        val clip = _clips.find { it.id == clipId } ?: return false
+
+        val records = mutableListOf<ReverseKeyframesCommand.KeyframeReverseRecord>()
+
+        clip.tracks.forEach { track ->
+            val keysOnTrack = track.keyframes.filter { keyframeIds.contains(it.id) }.sortedBy { it.frame }
+            if (keysOnTrack.size >= 2) {
+                val minF = keysOnTrack.first().frame
+                val maxF = keysOnTrack.last().frame
+                val framesList = keysOnTrack.map { it.frame }
+                val reversedFrames = framesList.reversed()
+
+                keysOnTrack.forEachIndexed { idx, kf ->
+                    records.add(ReverseKeyframesCommand.KeyframeReverseRecord(track.id, kf.id, kf.frame, reversedFrames[idx]))
+                }
+            }
+        }
+
+        if (records.isEmpty()) return false
+        return commandHistory.execute(ReverseKeyframesCommand(clip, records) {
+            eventBus.emit(AnimationEngineEvent.TrackChanged(clipId))
+        })
+    }
+
+    fun holdKeyframes(clipId: String, keyframeIds: Set<String>): Boolean {
+        val clip = _clips.find { it.id == clipId } ?: return false
+        var modified = false
+        clip.tracks.forEach { track ->
+            track.keyframes.filter { keyframeIds.contains(it.id) }.forEach { kf ->
+                kf.interpolation = InterpolationType.CONSTANT
+                kf.type = KeyframeType.HOLD
+                modified = true
+            }
+        }
+        if (modified) {
+            eventBus.emit(AnimationEngineEvent.TrackChanged(clipId))
+        }
+        return modified
+    }
+
+    fun stretchSelectedKeyframes(clipId: String, keyframeIds: Set<String>, amount: Int = 1): Boolean {
+        val clip = _clips.find { it.id == clipId } ?: return false
+        val selectedKeys = clip.tracks.flatMap { it.keyframes }.filter { keyframeIds.contains(it.id) }
+        if (selectedKeys.size < 2) return false
+        val minF = selectedKeys.minOf { it.frame }
+        val maxF = selectedKeys.maxOf { it.frame }
+        val currentDuration = (maxF - minF).coerceAtLeast(1)
+        val newDuration = currentDuration + amount
+        return scaleKeyframesToDuration(clipId, keyframeIds, newDuration)
+    }
+
+    fun compressSelectedKeyframes(clipId: String, keyframeIds: Set<String>, amount: Int = 1): Boolean {
+        val clip = _clips.find { it.id == clipId } ?: return false
+        val selectedKeys = clip.tracks.flatMap { it.keyframes }.filter { keyframeIds.contains(it.id) }
+        if (selectedKeys.size < 2) return false
+        val minF = selectedKeys.minOf { it.frame }
+        val maxF = selectedKeys.maxOf { it.frame }
+        val currentDuration = (maxF - minF).coerceAtLeast(1)
+        val newDuration = (currentDuration - amount).coerceAtLeast(1)
+        return scaleKeyframesToDuration(clipId, keyframeIds, newDuration)
+    }
+
+    fun holdSelectedKeyframes(clipId: String, keyframeIds: Set<String>): Boolean =
+        holdKeyframes(clipId, keyframeIds)
+
+    fun removeGapsBetweenKeyframes(clipId: String, fixedGap: Int = 2): Boolean =
+        removeGaps(clipId, fixedGap)
+
+    fun insertTimeAt(clipId: String, atFrame: Int, framesToInsert: Int): Boolean {
+        if (framesToInsert <= 0) return false
+        val clip = _clips.find { it.id == clipId } ?: return false
+
+        return commandHistory.execute(InsertTimeCommand(clip, atFrame, framesToInsert) {
+            eventBus.emit(AnimationEngineEvent.TrackChanged(clipId))
+        })
+    }
+
+    fun deleteTimeRange(clipId: String, startFrame: Int, endFrame: Int): Boolean {
+        if (startFrame > endFrame) return false
+        val clip = _clips.find { it.id == clipId } ?: return false
+
+        return commandHistory.execute(DeleteTimeRangeCommand(clip, startFrame, endFrame) {
+            eventBus.emit(AnimationEngineEvent.TrackChanged(clipId))
+        })
+    }
+
+    fun removeGaps(clipId: String, fixedGap: Int = 2): Boolean {
+        val clip = _clips.find { it.id == clipId } ?: return false
+        return commandHistory.execute(RemoveGapsCommand(clip, fixedGap) {
+            eventBus.emit(AnimationEngineEvent.TrackChanged(clipId))
+        })
+    }
+
+    fun toggleTrackSolo(clipId: String, trackId: String) {
+        val clip = _clips.find { it.id == clipId } ?: return
+        val target = clip.tracks.find { it.id == trackId } ?: return
+        target.isSolo = !target.isSolo
+        eventBus.emit(AnimationEngineEvent.TrackChanged(trackId))
+    }
+
+    fun toggleTrackMute(clipId: String, trackId: String) {
+        val clip = _clips.find { it.id == clipId } ?: return
+        val target = clip.tracks.find { it.id == trackId } ?: return
+        target.isMuted = !target.isMuted
+        eventBus.emit(AnimationEngineEvent.TrackChanged(trackId))
+    }
+
+    fun toggleTrackFocus(clipId: String, trackId: String) {
+        val clip = _clips.find { it.id == clipId } ?: return
+        val target = clip.tracks.find { it.id == trackId } ?: return
+        val newFocusedState = !target.isFocused
+        clip.tracks.forEach { it.isFocused = false }
+        target.isFocused = newFocusedState
+        eventBus.emit(AnimationEngineEvent.TrackChanged(trackId))
     }
 
     // =========================================================================
