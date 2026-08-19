@@ -54,18 +54,7 @@ import com.example.ui.MainViewModel
 import com.example.ui.components.KorvaLogo
 import com.example.ui.components.KorvaStatusBar
 import com.example.ui.components.ProjectCard
-import com.example.ui.theme.EngineBackground
-import com.example.ui.theme.EngineCardBg
-import com.example.ui.theme.EngineSurface
-import com.example.ui.theme.StudioBorder
-import com.example.ui.theme.StudioPurple
-import com.example.ui.theme.StudioPurpleDark
-import com.example.ui.theme.StudioPurpleGlass
-import com.example.ui.theme.StudioPurpleLight
-import com.example.ui.theme.StudioRed
-import com.example.ui.theme.TextMuted
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.*
 
 @Composable
 fun HomeScreen(
@@ -156,21 +145,21 @@ fun HomeScreen(
                         // Middle Section: Primary Action Buttons
                         Column(
                             modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             // Primary Button: "مشروع جديد"
                             Button(
                                 onClick = { viewModel.openNewProjectDialog() },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(36.dp)
-                                    .shadow(4.dp, RoundedCornerShape(6.dp), spotColor = StudioPurpleDark)
+                                    .height(40.dp)
+                                    .shadow(6.dp, RoundedCornerShape(8.dp), ambientColor = StudioPurpleDark, spotColor = StudioPurple)
                                     .testTag("start_editing_button"),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = StudioPurple,
                                     contentColor = Color.White
                                 ),
-                                shape = RoundedCornerShape(6.dp)
+                                shape = RoundedCornerShape(8.dp)
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -179,7 +168,7 @@ fun HomeScreen(
                                 ) {
                                     Box(
                                         modifier = Modifier
-                                            .size(18.dp)
+                                            .size(20.dp)
                                             .clip(CircleShape)
                                             .background(StudioPurpleDark),
                                         contentAlignment = Alignment.Center
@@ -188,13 +177,13 @@ fun HomeScreen(
                                             imageVector = Icons.Default.Add,
                                             contentDescription = null,
                                             tint = Color.White,
-                                            modifier = Modifier.size(13.dp)
+                                            modifier = Modifier.size(14.dp)
                                         )
                                     }
-                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = "مشروع جديد (Start Editing)",
-                                        fontSize = 9.5.sp,
+                                        text = "مشروع جديد (New Project)",
+                                        fontSize = 10.5.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Color.White
                                     )
@@ -206,7 +195,7 @@ fun HomeScreen(
                                 onClick = { viewModel.openOpenProjectDialog() },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(34.dp)
+                                    .height(38.dp)
                                     .testTag("open_saved_project_button"),
                                 colors = ButtonDefaults.outlinedButtonColors(
                                     containerColor = EngineCardBg,
@@ -214,11 +203,11 @@ fun HomeScreen(
                                 ),
                                 border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(
                                     brush = Brush.horizontalGradient(
-                                        listOf(StudioPurpleLight.copy(alpha = 0.5f), StudioBorder)
+                                        listOf(StudioPurpleLight.copy(alpha = 0.6f), StudioBorder)
                                     ),
-                                    width = 0.6.dp
+                                    width = 0.8.dp
                                 ),
-                                shape = RoundedCornerShape(6.dp)
+                                shape = RoundedCornerShape(8.dp)
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -228,13 +217,13 @@ fun HomeScreen(
                                     Icon(
                                         imageVector = Icons.Default.FolderOpen,
                                         contentDescription = null,
-                                        tint = StudioPurpleLight,
-                                        modifier = Modifier.size(14.dp)
+                                        tint = KorvaPurpleLight,
+                                        modifier = Modifier.size(15.dp)
                                     )
-                                    Spacer(modifier = Modifier.width(5.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
                                     Text(
-                                        text = "تحرير مشروع محفوظ (Open Project)",
-                                        fontSize = 9.sp,
+                                        text = "فتح مشروع محفوظ (Open)",
+                                        fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = TextPrimary
                                     )
@@ -248,34 +237,43 @@ fun HomeScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(5.dp))
+                                .clip(RoundedCornerShape(6.dp))
                                 .background(EngineCardBg)
-                                .border(0.5.dp, StudioBorder, RoundedCornerShape(5.dp))
-                                .padding(5.dp)
+                                .border(0.6.dp, StudioBorder, RoundedCornerShape(6.dp))
+                                .padding(horizontal = 8.dp, vertical = 6.dp)
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Column {
-                                    Text(
-                                        text = "Korva Runtime Engine",
-                                        color = TextPrimary,
-                                        fontSize = 8.5.sp,
-                                        fontWeight = FontWeight.SemiBold
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(7.dp)
+                                            .clip(CircleShape)
+                                            .background(KorvaGreen)
                                     )
-                                    Text(
-                                        text = "Pure 2D Engine Ready",
-                                        color = TextMuted,
-                                        fontSize = 7.sp
-                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Column {
+                                        Text(
+                                            text = "Korva 2D Engine",
+                                            color = TextPrimary,
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            text = "جاهز للعمل والتطوير",
+                                            color = TextMuted,
+                                            fontSize = 7.5.sp
+                                        )
+                                    }
                                 }
                                 Icon(
                                     imageVector = Icons.Default.AutoAwesome,
                                     contentDescription = null,
-                                    tint = StudioPurpleLight,
-                                    modifier = Modifier.size(12.dp)
+                                    tint = KorvaPurpleLight,
+                                    modifier = Modifier.size(13.dp)
                                 )
                             }
                         }

@@ -21,6 +21,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
@@ -183,51 +184,93 @@ fun EditorWorkspaceScreen(
                     ) {
                         Column(
                             modifier = Modifier
-                                .width(220.dp)
+                                .width(235.dp)
                                 .fillMaxHeight()
                                 .background(EngineSurface)
                                 .border(width = 0.8.dp, color = StudioBorder)
                         ) {
-                            // Left Panel Mode Tab Selector
+                            // Left Panel Mode Tab Selector with comfortable touch padding
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .background(EngineBackground)
-                                    .padding(4.dp),
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    .padding(horizontal = 6.dp, vertical = 5.dp),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(if (leftPanelMode == LeftPanelMode.OBJECTS) StudioPurple else Color.Transparent)
+                                        .height(30.dp)
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(
+                                            if (leftPanelMode == LeftPanelMode.OBJECTS) Brush.horizontalGradient(
+                                                listOf(StudioPurple, StudioPurpleDark)
+                                            ) else Brush.horizontalGradient(
+                                                listOf(EngineCardBg, EngineCardBg)
+                                            )
+                                        )
+                                        .border(
+                                            0.6.dp,
+                                            if (leftPanelMode == LeftPanelMode.OBJECTS) KorvaPurpleLight else StudioBorder,
+                                            RoundedCornerShape(6.dp)
+                                        )
                                         .clickable { leftPanelMode = LeftPanelMode.OBJECTS }
-                                        .padding(vertical = 4.dp),
+                                        .padding(horizontal = 4.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(
-                                        text = "الكائنات (Objects)",
-                                        color = if (leftPanelMode == LeftPanelMode.OBJECTS) Color.White else TextSecondary,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.Widgets,
+                                            contentDescription = null,
+                                            tint = if (leftPanelMode == LeftPanelMode.OBJECTS) Color.White else TextSecondary,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "الكائنات",
+                                            color = if (leftPanelMode == LeftPanelMode.OBJECTS) Color.White else TextSecondary,
+                                            fontSize = 10.5.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
                                 }
 
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(if (leftPanelMode == LeftPanelMode.LAYERS) StudioPurple else Color.Transparent)
+                                        .height(30.dp)
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(
+                                            if (leftPanelMode == LeftPanelMode.LAYERS) Brush.horizontalGradient(
+                                                listOf(StudioPurple, StudioPurpleDark)
+                                            ) else Brush.horizontalGradient(
+                                                listOf(EngineCardBg, EngineCardBg)
+                                            )
+                                        )
+                                        .border(
+                                            0.6.dp,
+                                            if (leftPanelMode == LeftPanelMode.LAYERS) KorvaPurpleLight else StudioBorder,
+                                            RoundedCornerShape(6.dp)
+                                        )
                                         .clickable { leftPanelMode = LeftPanelMode.LAYERS }
-                                        .padding(vertical = 4.dp),
+                                        .padding(horizontal = 4.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(
-                                        text = "الطبقات (Layers)",
-                                        color = if (leftPanelMode == LeftPanelMode.LAYERS) Color.White else TextSecondary,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.Layers,
+                                            contentDescription = null,
+                                            tint = if (leftPanelMode == LeftPanelMode.LAYERS) Color.White else TextSecondary,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "الطبقات",
+                                            color = if (leftPanelMode == LeftPanelMode.LAYERS) Color.White else TextSecondary,
+                                            fontSize = 10.5.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
                                 }
                             }
 

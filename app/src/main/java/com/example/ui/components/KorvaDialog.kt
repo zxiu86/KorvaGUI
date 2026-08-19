@@ -109,14 +109,16 @@ fun KorvaDialog(
     ) {
         Box(
             modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(horizontal = 12.dp, vertical = 6.dp)
                 .widthIn(min = 280.dp, max = maxWidth)
+                .heightIn(max = 360.dp)
                 .wrapContentHeight(),
             contentAlignment = Alignment.Center
         ) {
             Card(
                 modifier = modifier
                     .fillMaxWidth()
+                    .heightIn(max = 355.dp)
                     .shadow(elevation = 24.dp, shape = RoundedCornerShape(14.dp), ambientColor = StudioPurpleDark, spotColor = StudioPurple)
                     .clip(RoundedCornerShape(14.dp)),
                 shape = RoundedCornerShape(14.dp),
@@ -135,8 +137,7 @@ fun KorvaDialog(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                        .padding(horizontal = 12.dp, vertical = 10.dp)
                 ) {
                     // Header
                     Row(
@@ -151,7 +152,7 @@ fun KorvaDialog(
                             if (icon != null) {
                                 Box(
                                     modifier = Modifier
-                                        .size(32.dp)
+                                        .size(30.dp)
                                         .clip(RoundedCornerShape(8.dp))
                                         .background(StudioPurpleDark.copy(alpha = 0.7f))
                                         .border(0.8.dp, iconTint.copy(alpha = 0.4f), RoundedCornerShape(8.dp)),
@@ -161,7 +162,7 @@ fun KorvaDialog(
                                         imageVector = icon,
                                         contentDescription = null,
                                         tint = iconTint,
-                                        modifier = Modifier.size(17.dp)
+                                        modifier = Modifier.size(16.dp)
                                     )
                                 }
                                 Spacer(modifier = Modifier.width(8.dp))
@@ -175,7 +176,7 @@ fun KorvaDialog(
                                     Text(
                                         text = title,
                                         color = TextPrimary,
-                                        fontSize = 13.sp,
+                                        fontSize = 12.5.sp,
                                         fontWeight = FontWeight.Bold,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
@@ -204,7 +205,7 @@ fun KorvaDialog(
                                     Text(
                                         text = subtitle,
                                         color = TextMuted,
-                                        fontSize = 9.sp,
+                                        fontSize = 8.5.sp,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -216,7 +217,7 @@ fun KorvaDialog(
                             IconButton(
                                 onClick = onDismissRequest,
                                 modifier = Modifier
-                                    .size(28.dp)
+                                    .size(26.dp)
                                     .clip(CircleShape)
                                     .background(EngineCardBg)
                             ) {
@@ -224,23 +225,40 @@ fun KorvaDialog(
                                     imageVector = Icons.Default.Close,
                                     contentDescription = "إغلاق",
                                     tint = TextSecondary,
-                                    modifier = Modifier.size(14.dp)
+                                    modifier = Modifier.size(13.dp)
                                 )
                             }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(6.dp))
 
                     HorizontalDivider(
                         color = StudioBorder.copy(alpha = 0.6f),
                         thickness = 0.8.dp
                     )
 
-                    // Body
-                    content()
+                    Spacer(modifier = Modifier.height(6.dp))
 
-                    // Optional Footer Action Buttons
+                    // Body (Takes flexible space)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f, fill = false)
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            content()
+                        }
+                    }
+
+                    // Always Visible Sticky Footer Action Buttons
                     if (buttons != null) {
-                        Spacer(modifier = Modifier.height(2.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
+                        HorizontalDivider(
+                            color = StudioBorder.copy(alpha = 0.4f),
+                            thickness = 0.6.dp
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),

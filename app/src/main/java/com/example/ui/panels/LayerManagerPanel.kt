@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -14,8 +15,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.engine.interfaces.ILayer
@@ -38,7 +42,7 @@ fun LayerManagerPanel(
     modifier: Modifier = Modifier
 ) {
     var showNewLayerDialog by remember { mutableStateOf(false) }
-    var newLayerName by remember { mutableStateOf("") }
+    var newLayerName by remember { mutableStateOf("Foreground_01") }
 
     Column(
         modifier = modifier
@@ -51,36 +55,57 @@ fun LayerManagerPanel(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(EngineBackground)
-                .padding(horizontal = 10.dp, vertical = 8.dp),
+                .padding(horizontal = 8.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.Layers,
-                    contentDescription = null,
-                    tint = StudioPurpleLight,
-                    modifier = Modifier.size(16.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .size(22.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(StudioPurpleDark),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Layers,
+                        contentDescription = null,
+                        tint = KorvaPurpleLight,
+                        modifier = Modifier.size(13.dp)
+                    )
+                }
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = "مدير الطبقات (Layers)",
                     color = TextPrimary,
-                    fontSize = 12.5.sp,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
 
-            IconButton(
-                onClick = { showNewLayerDialog = true },
-                modifier = Modifier.size(26.dp)
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(StudioPurple)
+                    .clickable { showNewLayerDialog = true }
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                    .testTag("add_layer_button")
             ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "New Layer",
-                    tint = StudioPurpleLight,
-                    modifier = Modifier.size(16.dp)
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "إضافة طبقة",
+                        tint = Color.White,
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text(
+                        text = "طبقة +",
+                        color = Color.White,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
 
@@ -89,7 +114,7 @@ fun LayerManagerPanel(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .padding(horizontal = 6.dp, vertical = 6.dp),
+                .padding(horizontal = 4.dp, vertical = 4.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             itemsIndexed(layers, key = { _, layer -> layer.id }) { index, layer ->
@@ -98,72 +123,106 @@ fun LayerManagerPanel(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(if (isSelected) StudioPurpleDark else EngineCardBg)
+                        .heightIn(min = 38.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(
+                            if (isSelected) Brush.horizontalGradient(
+                                listOf(StudioPurpleDark, StudioPurple.copy(alpha = 0.5f))
+                            ) else Brush.horizontalGradient(
+                                listOf(EngineCardBg, EngineCardBg)
+                            )
+                        )
                         .border(
-                            0.8.dp,
-                            if (isSelected) StudioPurpleLight else StudioBorder,
-                            RoundedCornerShape(8.dp)
+                            width = if (isSelected) 1.dp else 0.6.dp,
+                            color = if (isSelected) KorvaPurpleLight else StudioBorder,
+                            shape = RoundedCornerShape(6.dp)
                         )
                         .clickable { onSelectLayer(layer.id) }
-                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                        .padding(horizontal = 6.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
+                    // Left info: Order index, Name, Object count
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text(
-                            text = "${index + 1}",
-                            color = TextMuted,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = layer.name,
-                            color = if (isSelected) Color.White else TextPrimary,
-                            fontSize = 12.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(18.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(if (isSelected) KorvaPurple else EngineBackground),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "${index + 1}",
+                                color = if (isSelected) Color.White else TextMuted,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "(${layer.objects.size})",
-                            color = TextMuted,
-                            fontSize = 10.sp
-                        )
+
+                        Column {
+                            Text(
+                                text = layer.name,
+                                color = if (isSelected) Color.White else TextPrimary,
+                                fontSize = 11.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = "${layer.objects.size} كائنات",
+                                color = if (isSelected) KorvaPurpleLight else TextMuted,
+                                fontSize = 8.5.sp
+                            )
+                        }
                     }
 
-                    // Action Controls
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        // Move Up / Down
-                        if (index > 0) {
-                            IconButton(
-                                onClick = { onMoveLayerUp(layer.id) },
-                                modifier = Modifier.size(22.dp)
-                            ) {
-                                Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Up", tint = TextSecondary, modifier = Modifier.size(14.dp))
-                            }
+                    // Action Controls with comfortable touch targets
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        // Move Up
+                        IconButton(
+                            onClick = { onMoveLayerUp(layer.id) },
+                            enabled = index > 0,
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.KeyboardArrowUp,
+                                contentDescription = "أعلى",
+                                tint = if (index > 0) (if (isSelected) Color.White else TextSecondary) else TextMuted.copy(alpha = 0.3f),
+                                modifier = Modifier.size(16.dp)
+                            )
                         }
-                        if (index < layers.size - 1) {
-                            IconButton(
-                                onClick = { onMoveLayerDown(layer.id) },
-                                modifier = Modifier.size(22.dp)
-                            ) {
-                                Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Down", tint = TextSecondary, modifier = Modifier.size(14.dp))
-                            }
+
+                        // Move Down
+                        IconButton(
+                            onClick = { onMoveLayerDown(layer.id) },
+                            enabled = index < layers.size - 1,
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.KeyboardArrowDown,
+                                contentDescription = "أسفل",
+                                tint = if (index < layers.size - 1) (if (isSelected) Color.White else TextSecondary) else TextMuted.copy(alpha = 0.3f),
+                                modifier = Modifier.size(16.dp)
+                            )
                         }
 
                         // Visibility Toggle
                         IconButton(
                             onClick = { onToggleLayerVisibility(layer.id) },
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(24.dp)
                         ) {
                             Icon(
                                 imageVector = if (layer.isVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                contentDescription = "Visibility",
-                                tint = if (layer.isVisible) TextSecondary else StudioRed,
+                                contentDescription = "الرؤية",
+                                tint = if (layer.isVisible) KorvaGreen else TextMuted,
                                 modifier = Modifier.size(14.dp)
                             )
                         }
@@ -171,11 +230,11 @@ fun LayerManagerPanel(
                         // Lock Toggle
                         IconButton(
                             onClick = { onToggleLayerLock(layer.id) },
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(24.dp)
                         ) {
                             Icon(
                                 imageVector = if (layer.isLocked) Icons.Default.Lock else Icons.Default.LockOpen,
-                                contentDescription = "Lock",
+                                contentDescription = "القفل",
                                 tint = if (layer.isLocked) StudioYellow else TextMuted,
                                 modifier = Modifier.size(14.dp)
                             )
@@ -185,13 +244,13 @@ fun LayerManagerPanel(
                         if (layers.size > 1) {
                             IconButton(
                                 onClick = { onDeleteLayer(layer.id) },
-                                modifier = Modifier.size(22.dp)
+                                modifier = Modifier.size(24.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Delete,
-                                    contentDescription = "Delete",
-                                    tint = StudioRed.copy(alpha = 0.7f),
-                                    modifier = Modifier.size(13.dp)
+                                    contentDescription = "حذف الطبقة",
+                                    tint = KorvaRed.copy(alpha = 0.8f),
+                                    modifier = Modifier.size(14.dp)
                                 )
                             }
                         }
@@ -201,14 +260,14 @@ fun LayerManagerPanel(
         }
     }
 
-    // New Layer Dialog
+    // Modern Create Layer Dialog
     if (showNewLayerDialog) {
         KorvaDialog(
             onDismissRequest = { showNewLayerDialog = false },
             title = "إنشاء طبقة جديدة (New Layer)",
-            subtitle = "إضافة طبقة ترتيب لمشهد اللعبة",
+            subtitle = "إضافة مستوى ترتيب جديد في المشهد",
             icon = Icons.Default.Layers,
-            maxWidth = 360.dp,
+            maxWidth = 380.dp,
             buttons = {
                 KorvaOutlinedButton(
                     text = "إلغاء",
@@ -217,11 +276,11 @@ fun LayerManagerPanel(
                 )
 
                 KorvaPrimaryButton(
-                    text = "إنشاء",
+                    text = "إنشاء الطبقة",
                     onClick = {
                         if (newLayerName.isNotBlank()) {
                             onCreateLayer(newLayerName.trim())
-                            newLayerName = ""
+                            newLayerName = "Layer_${System.currentTimeMillis() % 1000}"
                             showNewLayerDialog = false
                         }
                     },
@@ -230,22 +289,63 @@ fun LayerManagerPanel(
                 )
             }
         ) {
-            OutlinedTextField(
-                value = newLayerName,
-                onValueChange = { newLayerName = it },
-                placeholder = { Text("اسم الطبقة (مثال: Foreground)", color = TextMuted) },
-                singleLine = true,
-                shape = RoundedCornerShape(8.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = StudioPurpleLight,
-                    unfocusedBorderColor = StudioBorder,
-                    focusedContainerColor = EngineCardBg,
-                    unfocusedContainerColor = EngineCardBg,
-                    focusedTextColor = TextPrimary,
-                    unfocusedTextColor = TextPrimary
-                ),
-                modifier = Modifier.fillMaxWidth()
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "اقتراحات سريعة:",
+                    color = TextSecondary,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    listOf("Background", "Characters", "Foreground", "UI_HUD").forEach { preset ->
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(EngineBackground)
+                                .border(0.6.dp, StudioBorder, RoundedCornerShape(4.dp))
+                                .clickable { newLayerName = preset }
+                                .padding(vertical = 4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = preset,
+                                color = TextSecondary,
+                                fontSize = 8.5.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+
+                Text(
+                    text = "اسم الطبقة *",
+                    color = TextPrimary,
+                    fontSize = 10.5.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                OutlinedTextField(
+                    value = newLayerName,
+                    onValueChange = { newLayerName = it },
+                    placeholder = { Text("أدخل اسم الطبقة...", color = TextMuted, fontSize = 11.sp) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(6.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = KorvaPurpleLight,
+                        unfocusedBorderColor = StudioBorder,
+                        focusedContainerColor = EngineCardBg,
+                        unfocusedContainerColor = EngineCardBg,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         }
     }
 }

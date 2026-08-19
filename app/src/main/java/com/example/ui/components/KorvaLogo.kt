@@ -109,7 +109,7 @@ fun KorvaLogo(
                         .padding(horizontal = 4.dp, vertical = 1.dp)
                 ) {
                     Text(
-                        text = "v1.0",
+                        text = "v1.4",
                         color = EngineWhiteMuted,
                         fontSize = 7.5.sp,
                         fontWeight = FontWeight.Bold,

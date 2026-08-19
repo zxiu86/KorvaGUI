@@ -19,14 +19,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.engine.interfaces.IObject
 import com.example.engine.interfaces.ISection
 import com.example.engine.interfaces.PropertyValue
 import com.example.ui.components.DynamicSectionCard
+import com.example.ui.components.KorvaDropdownMenu
+import com.example.ui.components.KorvaDropdownMenuItem
 import com.example.ui.theme.*
 
 @Composable
@@ -64,25 +68,35 @@ fun ObjectInspectorPanel(
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Icon(
-                    imageVector = Icons.Default.TouchApp,
-                    contentDescription = null,
-                    tint = TextMuted,
-                    modifier = Modifier.size(32.dp)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(StudioPurpleDark.copy(alpha = 0.5f))
+                        .border(1.dp, StudioBorder, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.TouchApp,
+                        contentDescription = null,
+                        tint = KorvaPurpleLight,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(10.dp))
                 Text(
-                    text = "لم يتم تحديد كائن",
+                    text = "لم يتم تحديد أي كائن",
                     color = TextPrimary,
-                    fontSize = 12.5.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "انقر على أي كائن في المشهد لعرض وتعديل خصائصه",
+                    text = "انقر على أي كائن من المشهد أو شجرة الكائنات لتعديل خصائصه ومكوناته",
                     color = TextMuted,
-                    fontSize = 10.5.sp,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    fontSize = 9.5.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    lineHeight = 14.sp
                 )
             }
         } else {
@@ -93,8 +107,6 @@ fun ObjectInspectorPanel(
                         .fillMaxWidth()
                         .background(EngineBackground)
                         .padding(horizontal = 8.dp, vertical = 6.dp)
-                        .border(0.6.dp, StudioBorder, RoundedCornerShape(6.dp))
-                        .padding(6.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -108,43 +120,68 @@ fun ObjectInspectorPanel(
                             val emoji = when {
                                 selectedObject.name.contains("player", true) -> "👤"
                                 selectedObject.name.contains("enemy", true) -> "👹"
-                                selectedObject.name.contains("tree", true) -> "🌳"
+                                selectedObject.name.contains("tree", true) || selectedObject.name.contains("ground", true) -> "🧱"
                                 selectedObject.name.contains("camera", true) -> "📷"
                                 selectedObject.name.contains("light", true) -> "💡"
                                 selectedObject.name.contains("coin", true) -> "🪙"
+                                selectedObject.name.contains("particle", true) -> "✨"
                                 else -> "📦"
                             }
 
-                            Text(emoji, fontSize = 13.sp)
-                            Spacer(modifier = Modifier.width(5.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clip(RoundedCornerShape(5.dp))
+                                    .background(StudioPurpleDark),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(emoji, fontSize = 12.sp)
+                            }
+                            Spacer(modifier = Modifier.width(6.dp))
 
                             if (isEditingName) {
                                 OutlinedTextField(
                                     value = tempName,
                                     onValueChange = { tempName = it },
                                     singleLine = true,
-                                    modifier = Modifier.weight(1f).height(36.dp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(34.dp),
+                                    shape = RoundedCornerShape(4.dp),
                                     colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = StudioPurpleLight,
-                                        unfocusedBorderColor = StudioBorder
+                                        focusedBorderColor = KorvaPurpleLight,
+                                        unfocusedBorderColor = StudioBorder,
+                                        focusedContainerColor = EngineCardBg,
+                                        unfocusedContainerColor = EngineCardBg,
+                                        focusedTextColor = TextPrimary,
+                                        unfocusedTextColor = TextPrimary
                                     )
                                 )
+                                Spacer(modifier = Modifier.width(4.dp))
                                 IconButton(
                                     onClick = {
-                                        onRenameObject(tempName)
+                                        if (tempName.isNotBlank()) {
+                                            onRenameObject(tempName.trim())
+                                        }
                                         isEditingName = false
                                     },
-                                    modifier = Modifier.size(26.dp)
+                                    modifier = Modifier.size(24.dp)
                                 ) {
-                                    Icon(Icons.Default.Check, contentDescription = "Save", tint = StudioGreen, modifier = Modifier.size(15.dp))
+                                    Icon(
+                                        Icons.Default.Check,
+                                        contentDescription = "حفظ",
+                                        tint = KorvaGreen,
+                                        modifier = Modifier.size(15.dp)
+                                    )
                                 }
                             } else {
                                 Text(
                                     text = selectedObject.name,
                                     color = TextPrimary,
-                                    fontSize = 12.sp,
+                                    fontSize = 11.5.sp,
                                     fontWeight = FontWeight.Bold,
                                     maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.weight(1f)
                                 )
                                 IconButton(
@@ -152,23 +189,31 @@ fun ObjectInspectorPanel(
                                         tempName = selectedObject.name
                                         isEditingName = true
                                     },
-                                    modifier = Modifier.size(22.dp)
+                                    modifier = Modifier.size(24.dp)
                                 ) {
-                                    Icon(Icons.Default.Edit, contentDescription = "Rename", tint = TextMuted, modifier = Modifier.size(12.dp))
+                                    Icon(
+                                        Icons.Default.Edit,
+                                        contentDescription = "إعادة تسمية",
+                                        tint = TextMuted,
+                                        modifier = Modifier.size(12.dp)
+                                    )
                                 }
                             }
                         }
 
                         // Visibility & Lock Quick Toggles
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
                             IconButton(
                                 onClick = onToggleObjectVisibility,
                                 modifier = Modifier.size(24.dp)
                             ) {
                                 Icon(
                                     imageVector = if (selectedObject.isVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                    contentDescription = "Visibility",
-                                    tint = if (selectedObject.isVisible) TextSecondary else StudioRed,
+                                    contentDescription = "الرؤية",
+                                    tint = if (selectedObject.isVisible) KorvaGreen else TextMuted,
                                     modifier = Modifier.size(14.dp)
                                 )
                             }
@@ -178,7 +223,7 @@ fun ObjectInspectorPanel(
                             ) {
                                 Icon(
                                     imageVector = if (selectedObject.isLocked) Icons.Default.Lock else Icons.Default.LockOpen,
-                                    contentDescription = "Lock",
+                                    contentDescription = "القفل",
                                     tint = if (selectedObject.isLocked) StudioYellow else TextMuted,
                                     modifier = Modifier.size(14.dp)
                                 )
@@ -186,66 +231,113 @@ fun ObjectInspectorPanel(
                         }
                     }
 
-                    // Clean Layer Info & Compact Toggle
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Layer Info & Compact Toggle
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Layers, contentDescription = null, tint = StudioPurpleLight, modifier = Modifier.size(11.dp))
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text(
-                                text = layerName.ifBlank { "World" },
-                                color = StudioPurpleLight,
-                                fontSize = 9.5.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(StudioPurpleDark.copy(alpha = 0.5f))
+                                .border(0.6.dp, StudioBorder, RoundedCornerShape(4.dp))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Default.Layers,
+                                    contentDescription = null,
+                                    tint = KorvaPurpleLight,
+                                    modifier = Modifier.size(10.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "الطبقة: ${layerName.ifBlank { "World" }}",
+                                    color = KorvaPurpleLight,
+                                    fontSize = 8.5.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
                         }
 
                         // Compact Mode Toggle
                         Row(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(4.dp))
-                                .background(if (isCompactMode) StudioPurpleDark else Color.Transparent)
+                                .background(if (isCompactMode) StudioPurpleDark else EngineCardBg)
+                                .border(0.6.dp, if (isCompactMode) KorvaPurpleLight else StudioBorder, RoundedCornerShape(4.dp))
                                 .clickable { isCompactMode = !isCompactMode }
-                                .padding(horizontal = 4.dp, vertical = 1.dp),
+                                .padding(horizontal = 6.dp, vertical = 2.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = if (isCompactMode) Icons.Default.ViewAgenda else Icons.Default.ViewCompact,
                                 contentDescription = null,
-                                tint = if (isCompactMode) StudioPurpleLight else TextMuted,
+                                tint = if (isCompactMode) Color.White else TextSecondary,
                                 modifier = Modifier.size(11.dp)
                             )
                             Spacer(modifier = Modifier.width(3.dp))
                             Text(
-                                text = "Compact",
-                                color = if (isCompactMode) StudioPurpleLight else TextMuted,
-                                fontSize = 9.sp,
+                                text = "عرض مضغوط",
+                                color = if (isCompactMode) Color.White else TextSecondary,
+                                fontSize = 8.5.sp,
                                 fontWeight = FontWeight.Bold
                             )
                         }
                     }
                 }
 
-                // Property Search Bar (Requirement 18)
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("🔍 بحث في الخصائص...", color = TextMuted, fontSize = 10.sp) },
-                    singleLine = true,
+                // Property Search Bar
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 6.dp, vertical = 3.dp)
-                        .height(36.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = StudioPurpleLight,
-                        unfocusedBorderColor = StudioBorder,
-                        focusedContainerColor = EngineCardBg,
-                        unfocusedContainerColor = EngineCardBg
+                ) {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        placeholder = { Text("بحث في الخصائص والمكونات...", color = TextMuted, fontSize = 9.5.sp) },
+                        singleLine = true,
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = null,
+                                tint = if (searchQuery.isNotBlank()) KorvaPurpleLight else TextMuted,
+                                modifier = Modifier.size(13.dp)
+                            )
+                        },
+                        trailingIcon = {
+                            if (searchQuery.isNotBlank()) {
+                                IconButton(
+                                    onClick = { searchQuery = "" },
+                                    modifier = Modifier.size(20.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Clear,
+                                        contentDescription = "مسح",
+                                        tint = TextMuted,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(36.dp),
+                        shape = RoundedCornerShape(6.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = KorvaPurpleLight,
+                            unfocusedBorderColor = StudioBorder,
+                            focusedContainerColor = EngineCardBg,
+                            unfocusedContainerColor = EngineCardBg,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary
+                        )
                     )
-                )
+                }
 
                 // Scrollable Dynamic Cards List
                 val filteredSections = remember(selectedObject.sections, searchQuery) {
@@ -300,34 +392,45 @@ fun ObjectInspectorPanel(
                                 shape = RoundedCornerShape(6.dp),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(34.dp)
-                                    .border(0.8.dp, StudioPurpleLight.copy(alpha = 0.5f), RoundedCornerShape(6.dp)),
+                                    .height(36.dp)
+                                    .border(0.8.dp, KorvaPurpleLight.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                                    .testTag("add_component_button"),
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                             ) {
-                                Icon(Icons.Default.Add, contentDescription = null, tint = StudioPurpleLight, modifier = Modifier.size(14.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("+ إضافة قسم (Section)", color = TextPrimary, fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
+                                Icon(
+                                    Icons.Default.Add,
+                                    contentDescription = null,
+                                    tint = KorvaPurpleLight,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Text(
+                                    text = "+ إضافة مكون (Component / Section)",
+                                    color = TextPrimary,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
 
-                            DropdownMenu(
+                            KorvaDropdownMenu(
                                 expanded = showAddSectionMenu,
-                                onDismissRequest = { showAddSectionMenu = false },
-                                modifier = Modifier.background(EngineSurface)
+                                onDismissRequest = { showAddSectionMenu = false }
                             ) {
                                 listOf(
-                                    "Sprite" to Icons.Default.Image,
-                                    "Physics" to Icons.Default.Science,
-                                    "Animation" to Icons.Default.Movie,
-                                    "Logic (Brain)" to Icons.Default.Psychology,
-                                    "Light 2D" to Icons.Default.Lightbulb,
-                                    "Camera 2D" to Icons.Default.Videocam,
-                                    "Particles 2D" to Icons.Default.AutoAwesome,
-                                    "Audio Source" to Icons.Default.VolumeUp,
-                                    "UI Element" to Icons.Default.DashboardCustomize
-                                ).forEach { (secTitle, secIcon) ->
-                                    DropdownMenuItem(
-                                        text = { Text(secTitle, color = TextPrimary, fontSize = 11.5.sp) },
-                                        leadingIcon = { Icon(secIcon, contentDescription = null, tint = StudioPurpleLight, modifier = Modifier.size(15.dp)) },
+                                    Triple("Sprite", Icons.Default.Image, KorvaPurpleLight),
+                                    Triple("Physics", Icons.Default.Science, StudioYellow),
+                                    Triple("Animation", Icons.Default.Movie, KorvaBlue),
+                                    Triple("Logic (Brain)", Icons.Default.Psychology, KorvaGreen),
+                                    Triple("Light 2D", Icons.Default.Lightbulb, StudioYellow),
+                                    Triple("Camera 2D", Icons.Default.Videocam, KorvaBlue),
+                                    Triple("Particles 2D", Icons.Default.AutoAwesome, KorvaPurpleLight),
+                                    Triple("Audio Source", Icons.Default.VolumeUp, KorvaBlue),
+                                    Triple("UI Element", Icons.Default.DashboardCustomize, KorvaGreen)
+                                ).forEach { (secTitle, secIcon, iconTint) ->
+                                    KorvaDropdownMenuItem(
+                                        text = secTitle,
+                                        icon = secIcon,
+                                        iconTint = iconTint,
                                         onClick = {
                                             onAddSection(secTitle)
                                             showAddSectionMenu = false
@@ -342,4 +445,3 @@ fun ObjectInspectorPanel(
         }
     }
 }
-
