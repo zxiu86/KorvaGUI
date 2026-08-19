@@ -3,12 +3,32 @@ package com.example.ui.animation
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.ShowChart
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -17,11 +37,23 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import com.example.engine.animation.InterpolationType
 import com.example.engine.animation.KeyframeData
 import com.example.engine.animation.TrackData
-import com.example.ui.theme.*
+import com.example.ui.components.KorvaDangerButton
+import com.example.ui.components.KorvaDialog
+import com.example.ui.components.KorvaOutlinedButton
+import com.example.ui.theme.EngineBackground
+import com.example.ui.theme.EngineCardBg
+import com.example.ui.theme.KorvaBlue
+import com.example.ui.theme.KorvaPurple
+import com.example.ui.theme.KorvaPurpleLight
+import com.example.ui.theme.KorvaRed
+import com.example.ui.theme.KorvaYellow
+import com.example.ui.theme.StudioBorder
+import com.example.ui.theme.TextMuted
+import com.example.ui.theme.TextPrimary
+import com.example.ui.theme.TextSecondary
 
 @Composable
 fun KeyframeContextMenuDialog(
@@ -36,201 +68,185 @@ fun KeyframeContextMenuDialog(
 ) {
     var valueText by remember(keyframe) { mutableStateOf(keyframe.value.toString()) }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            modifier = Modifier.width(300.dp),
-            shape = RoundedCornerShape(8.dp),
-            colors = CardDefaults.cardColors(containerColor = EngineSurface),
-            border = androidx.compose.foundation.BorderStroke(1.dp, StudioPurpleBorder)
+    KorvaDialog(
+        onDismissRequest = onDismiss,
+        title = "تحكم الإطار المفتاحي",
+        subtitle = "${track.name} • Frame ${keyframe.frame}",
+        icon = Icons.Default.Tune,
+        iconTint = track.displayColor,
+        maxWidth = 360.dp,
+        buttons = {
+            KorvaOutlinedButton(
+                text = "إغلاق",
+                onClick = onDismiss,
+                modifier = Modifier.weight(1f)
+            )
+
+            KorvaDangerButton(
+                text = "حذف الإطار",
+                onClick = {
+                    onDelete()
+                    onDismiss()
+                },
+                icon = Icons.Default.Delete,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(10.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // Header
+            // 1. Value Input & Stepper
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("القيمة (Value):", color = TextSecondary, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Tune, contentDescription = null, tint = track.displayColor, modifier = Modifier.size(15.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("إطار ${track.name} (Frame ${keyframe.frame})", color = TextPrimary, fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
+                    IconButton(
+                        onClick = {
+                            val cur = valueText.toFloatOrNull() ?: keyframe.value
+                            val next = cur - 1f
+                            valueText = next.toString()
+                            onSetValue(next)
+                        },
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(EngineCardBg)
+                            .border(0.8.dp, StudioBorder, RoundedCornerShape(8.dp))
+                    ) {
+                        Icon(Icons.Default.Remove, contentDescription = "إنقاص", tint = TextSecondary, modifier = Modifier.size(16.dp))
                     }
 
-                    IconButton(onClick = onDismiss, modifier = Modifier.size(20.dp)) {
-                        Icon(Icons.Default.Close, contentDescription = "إغلاق", tint = TextMuted, modifier = Modifier.size(13.dp))
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(36.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(EngineBackground)
+                            .border(0.8.dp, KorvaPurpleLight.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        androidx.compose.foundation.text.BasicTextField(
+                            value = valueText,
+                            onValueChange = {
+                                valueText = it
+                                it.toFloatOrNull()?.let { v -> onSetValue(v) }
+                            },
+                            textStyle = androidx.compose.ui.text.TextStyle(
+                                color = KorvaPurpleLight,
+                                fontSize = 13.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            ),
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    IconButton(
+                        onClick = {
+                            val cur = valueText.toFloatOrNull() ?: keyframe.value
+                            val next = cur + 1f
+                            valueText = next.toString()
+                            onSetValue(next)
+                        },
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(EngineCardBg)
+                            .border(0.8.dp, StudioBorder, RoundedCornerShape(8.dp))
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "زيادة", tint = TextSecondary, modifier = Modifier.size(16.dp))
                     }
                 }
+            }
 
-                HorizontalDivider(color = StudioBorder)
-
-                // 1. Value Input & Stepper
-                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text("القيمة (Value):", color = TextSecondary, fontSize = 9.sp)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        IconButton(
-                            onClick = {
-                                val cur = valueText.toFloatOrNull() ?: keyframe.value
-                                val next = cur - 1f
-                                valueText = next.toString()
-                                onSetValue(next)
-                            },
-                            modifier = Modifier.size(26.dp)
-                        ) {
-                            Icon(Icons.Default.Remove, contentDescription = "إنقاص", tint = TextSecondary, modifier = Modifier.size(13.dp))
-                        }
-
+            // 2. Interpolation Mode Chips
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("نوع المنحنى (Interpolation):", color = TextSecondary, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(EngineBackground)
+                        .padding(3.dp),
+                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    listOf(
+                        InterpolationType.LINEAR to "Linear",
+                        InterpolationType.EASE_IN_OUT to "Ease",
+                        InterpolationType.CONSTANT to "Hold",
+                        InterpolationType.BEZIER to "Bezier"
+                    ).forEach { (type, label) ->
+                        val isChosen = keyframe.interpolation == type
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .height(28.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(EngineBackground)
-                                .border(0.5.dp, StudioBorder, RoundedCornerShape(4.dp))
-                                .padding(horizontal = 6.dp),
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(if (isChosen) KorvaPurple else Color.Transparent)
+                                .clickable { onSetInterpolation(type) }
+                                .padding(vertical = 6.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            androidx.compose.foundation.text.BasicTextField(
-                                value = valueText,
-                                onValueChange = {
-                                    valueText = it
-                                    it.toFloatOrNull()?.let { v -> onSetValue(v) }
-                                },
-                                textStyle = androidx.compose.ui.text.TextStyle(
-                                    color = StudioPurpleLight,
-                                    fontSize = 11.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                    fontWeight = FontWeight.Bold,
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                ),
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth()
+                            Text(
+                                text = label,
+                                color = if (isChosen) Color.White else TextSecondary,
+                                fontSize = 10.sp,
+                                fontWeight = if (isChosen) FontWeight.Bold else FontWeight.Normal
                             )
                         }
-
-                        IconButton(
-                            onClick = {
-                                val cur = valueText.toFloatOrNull() ?: keyframe.value
-                                val next = cur + 1f
-                                valueText = next.toString()
-                                onSetValue(next)
-                            },
-                            modifier = Modifier.size(26.dp)
-                        ) {
-                            Icon(Icons.Default.Add, contentDescription = "زيادة", tint = TextSecondary, modifier = Modifier.size(13.dp))
-                        }
                     }
                 }
+            }
 
-                // 2. Interpolation Mode Dropdown / Chips
-                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text("نوع المنحنى (Interpolation):", color = TextSecondary, fontSize = 9.sp)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(EngineBackground)
-                            .padding(2.dp),
-                        horizontalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        listOf(
-                            InterpolationType.LINEAR to "Linear",
-                            InterpolationType.EASE_IN_OUT to "Ease",
-                            InterpolationType.CONSTANT to "Hold",
-                            InterpolationType.BEZIER to "Bezier"
-                        ).forEach { (type, label) ->
-                            val isChosen = keyframe.interpolation == type
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clip(RoundedCornerShape(3.dp))
-                                    .background(if (isChosen) StudioPurple else Color.Transparent)
-                                    .clickable { onSetInterpolation(type) }
-                                    .padding(vertical = 4.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = label,
-                                    color = if (isChosen) Color.White else TextSecondary,
-                                    fontSize = 8.5.sp,
-                                    fontWeight = if (isChosen) FontWeight.Bold else FontWeight.Normal
-                                )
-                            }
+            // 3. Quick Action Buttons
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                // Open Curve Editor
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(EngineCardBg)
+                        .border(0.8.dp, StudioBorder, RoundedCornerShape(8.dp))
+                        .clickable {
+                            onDismiss()
+                            onOpenCurveEditor()
                         }
-                    }
-                }
-
-                // 3. Quick Actions (Duplicate, Open Curve Editor, Delete)
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                        .padding(horizontal = 10.dp, vertical = 8.dp)
                 ) {
-                    // Open Curve Editor
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(EngineCardBg)
-                            .border(0.5.dp, StudioBorder, RoundedCornerShape(4.dp))
-                            .clickable {
-                                onDismiss()
-                                onOpenCurveEditor()
-                            }
-                            .padding(horizontal = 8.dp, vertical = 6.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.ShowChart, contentDescription = null, tint = StudioYellow, modifier = Modifier.size(13.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("فتح محرر المنحنيات الكامل (Curve Editor)", color = TextPrimary, fontSize = 9.5.sp)
-                        }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.ShowChart, contentDescription = null, tint = KorvaYellow, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("فتح محرر المنحنيات الكامل (Curve Editor)", color = TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Medium)
                     }
+                }
 
-                    // Duplicate Keyframe
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(EngineCardBg)
-                            .border(0.5.dp, StudioBorder, RoundedCornerShape(4.dp))
-                            .clickable {
-                                onDuplicate()
-                                onDismiss()
-                            }
-                            .padding(horizontal = 8.dp, vertical = 6.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.ContentCopy, contentDescription = null, tint = StudioBlue, modifier = Modifier.size(13.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("نسخ وتكرار الإطار (Duplicate)", color = TextPrimary, fontSize = 9.5.sp)
+                // Duplicate Keyframe
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(EngineCardBg)
+                        .border(0.8.dp, StudioBorder, RoundedCornerShape(8.dp))
+                        .clickable {
+                            onDuplicate()
+                            onDismiss()
                         }
-                    }
-
-                    // Delete Keyframe
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(StudioRed.copy(alpha = 0.15f))
-                            .border(0.5.dp, StudioRed.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
-                            .clickable {
-                                onDelete()
-                                onDismiss()
-                            }
-                            .padding(horizontal = 8.dp, vertical = 6.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Delete, contentDescription = null, tint = StudioRed, modifier = Modifier.size(13.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("حذف الإطار المفتاحي (Delete)", color = StudioRed, fontSize = 9.5.sp, fontWeight = FontWeight.Bold)
-                        }
+                        .padding(horizontal = 10.dp, vertical = 8.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.ContentCopy, contentDescription = null, tint = KorvaBlue, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("نسخ وتكرار الإطار (Duplicate)", color = TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Medium)
                     }
                 }
             }

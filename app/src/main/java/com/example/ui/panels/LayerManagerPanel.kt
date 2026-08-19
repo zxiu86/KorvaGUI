@@ -19,6 +19,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.engine.interfaces.ILayer
+import com.example.ui.components.KorvaDialog
+import com.example.ui.components.KorvaOutlinedButton
+import com.example.ui.components.KorvaPrimaryButton
 import com.example.ui.theme.*
 
 @Composable
@@ -200,23 +203,21 @@ fun LayerManagerPanel(
 
     // New Layer Dialog
     if (showNewLayerDialog) {
-        AlertDialog(
+        KorvaDialog(
             onDismissRequest = { showNewLayerDialog = false },
-            title = { Text("إنشاء طبقة جديدة", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold) },
-            text = {
-                OutlinedTextField(
-                    value = newLayerName,
-                    onValueChange = { newLayerName = it },
-                    placeholder = { Text("اسم الطبقة (مثال: Foreground)", color = TextMuted) },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = StudioPurpleLight,
-                        unfocusedBorderColor = StudioBorder
-                    )
+            title = "إنشاء طبقة جديدة (New Layer)",
+            subtitle = "إضافة طبقة ترتيب لمشهد اللعبة",
+            icon = Icons.Default.Layers,
+            maxWidth = 360.dp,
+            buttons = {
+                KorvaOutlinedButton(
+                    text = "إلغاء",
+                    onClick = { showNewLayerDialog = false },
+                    modifier = Modifier.weight(1f)
                 )
-            },
-            confirmButton = {
-                Button(
+
+                KorvaPrimaryButton(
+                    text = "إنشاء",
                     onClick = {
                         if (newLayerName.isNotBlank()) {
                             onCreateLayer(newLayerName.trim())
@@ -224,17 +225,27 @@ fun LayerManagerPanel(
                             showNewLayerDialog = false
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = StudioPurple)
-                ) {
-                    Text("إنشاء", color = Color.White)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showNewLayerDialog = false }) {
-                    Text("إلغاء", color = TextMuted)
-                }
-            },
-            containerColor = EngineSurface
-        )
+                    icon = Icons.Default.Check,
+                    modifier = Modifier.weight(1.2f)
+                )
+            }
+        ) {
+            OutlinedTextField(
+                value = newLayerName,
+                onValueChange = { newLayerName = it },
+                placeholder = { Text("اسم الطبقة (مثال: Foreground)", color = TextMuted) },
+                singleLine = true,
+                shape = RoundedCornerShape(8.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = StudioPurpleLight,
+                    unfocusedBorderColor = StudioBorder,
+                    focusedContainerColor = EngineCardBg,
+                    unfocusedContainerColor = EngineCardBg,
+                    focusedTextColor = TextPrimary,
+                    unfocusedTextColor = TextPrimary
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 }

@@ -2,44 +2,39 @@ package com.example.ui.dialogs
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.PowerSettingsNew
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-import com.example.ui.theme.EngineBorder
-import com.example.ui.theme.EngineSurface
+import com.example.ui.components.KorvaDangerButton
+import com.example.ui.components.KorvaDialog
+import com.example.ui.components.KorvaOutlinedButton
+import com.example.ui.theme.EngineCardBg
 import com.example.ui.theme.KorvaRed
+import com.example.ui.theme.StudioBorder
+import com.example.ui.theme.StudioRed
+import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 
@@ -48,96 +43,64 @@ fun ExitConfirmDialog(
     onDismiss: () -> Unit,
     onConfirmExit: () -> Unit
 ) {
-    val scrollState = rememberScrollState()
-
-    Dialog(
+    KorvaDialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnBackPress = true)
+        title = "إغلاق التطبيق",
+        subtitle = "تأكيد الخروج من korva engine",
+        icon = Icons.Default.PowerSettingsNew,
+        iconTint = KorvaRed,
+        maxWidth = 380.dp,
+        buttons = {
+            KorvaOutlinedButton(
+                text = "البقاء",
+                onClick = onDismiss,
+                modifier = Modifier.weight(1f)
+            )
+
+            KorvaDangerButton(
+                text = "خروج نهائي",
+                onClick = onConfirmExit,
+                icon = Icons.Default.ExitToApp,
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("confirm_exit_button")
+            )
+        }
     ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth(0.85f)
-                .widthIn(min = 320.dp, max = 440.dp)
-                .padding(8.dp)
-                .shadow(20.dp, RoundedCornerShape(16.dp))
-                .clip(RoundedCornerShape(16.dp))
-                .background(EngineSurface)
-                .border(1.dp, KorvaRed.copy(alpha = 0.4f), RoundedCornerShape(16.dp)),
-            color = EngineSurface
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(18.dp)
-                    .verticalScroll(scrollState)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(KorvaRed.copy(alpha = 0.10f))
+                    .border(0.8.dp, KorvaRed.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                    .padding(10.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(KorvaRed.copy(alpha = 0.15f))
-                            .border(1.dp, KorvaRed.copy(alpha = 0.3f), RoundedCornerShape(8.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.PowerSettingsNew,
-                            contentDescription = null,
-                            tint = KorvaRed,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = "إغلاق التطبيق",
-                            color = TextPrimary,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "هل أنت متأكد من الخروج من korva engine؟",
-                            color = TextSecondary,
-                            fontSize = 11.5.sp
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .clickable { onDismiss() }
-                            .padding(horizontal = 12.dp, vertical = 7.dp)
-                    ) {
-                        Text("البقاء", color = TextSecondary, fontSize = 12.5.sp)
-                    }
-
+                    Icon(
+                        imageVector = Icons.Default.WarningAmber,
+                        contentDescription = null,
+                        tint = KorvaRed,
+                        modifier = Modifier.size(18.dp)
+                    )
                     Spacer(modifier = Modifier.width(8.dp))
-
-                    Button(
-                        onClick = onConfirmExit,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = KorvaRed,
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.testTag("confirm_exit_button")
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.ExitToApp, contentDescription = null, modifier = Modifier.size(14.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("خروج نهائي", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
+                    Text(
+                        text = "هل أنت متأكد من الخروج؟ تأكد من حفظ كل تعديلاتك قبل الإغلاق.",
+                        color = TextPrimary,
+                        fontSize = 11.sp,
+                        lineHeight = 16.sp
+                    )
                 }
             }
+
+            Text(
+                text = "سيتم إنهاء الجلسة والعودة للشاشة الرئيسية للجهاز.",
+                color = TextSecondary,
+                fontSize = 10.sp
+            )
         }
     }
 }

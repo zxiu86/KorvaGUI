@@ -45,7 +45,11 @@ val KorvaCyanDim = Color(0xFF94A3B8)
 val KorvaBlue = Color(0xFFCBD5E1)
 val KorvaAmber = Color(0xFFE2B770)
 val KorvaEmerald = Color(0xFF22C55E)
+val KorvaGreen = Color(0xFF22C55E)
 val KorvaPurple = Color(0xFF8B5CF6)
+val KorvaPurpleLight = Color(0xFFA78BFA)
+val KorvaPurpleDark = Color(0xFF6D28D9)
+val KorvaYellow = Color(0xFFFACC15)
 val KorvaRed = Color(0xFFEF4444)
 
 // Text Colors

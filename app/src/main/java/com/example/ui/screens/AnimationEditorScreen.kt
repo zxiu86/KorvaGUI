@@ -20,6 +20,9 @@ import androidx.compose.ui.window.Dialog
 import com.example.engine.animation.*
 import com.example.model.SceneNode
 import com.example.ui.animation.*
+import com.example.ui.components.KorvaDialog
+import com.example.ui.components.KorvaOutlinedButton
+import com.example.ui.components.KorvaPrimaryButton
 import com.example.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -694,84 +697,98 @@ fun AnimationEditorScreen(
 
     // K. New Clip Dialog
     if (isNewClipDialogOpen) {
-        Dialog(onDismissRequest = { isNewClipDialogOpen = false }) {
-            Card(
-                shape = RoundedCornerShape(8.dp),
-                colors = CardDefaults.cardColors(containerColor = EngineSurface),
-                border = androidx.compose.foundation.BorderStroke(1.dp, StudioPurpleBorder),
-                modifier = Modifier.width(280.dp)
-            ) {
-                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("إنشاء مقطع أنيميشن جديد", color = TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    OutlinedTextField(
-                        value = newClipName,
-                        onValueChange = { newClipName = it },
-                        label = { Text("اسم المقطع") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Button(onClick = { isNewClipDialogOpen = false }, colors = ButtonDefaults.buttonColors(containerColor = EngineCardBg), modifier = Modifier.weight(1f)) {
-                            Text("إلغاء", color = TextSecondary, fontSize = 10.sp)
+        KorvaDialog(
+            onDismissRequest = { isNewClipDialogOpen = false },
+            title = "إنشاء مقطع أنيميشن جديد",
+            subtitle = "إضافة مقطع حركة فارغ إلى المشروع",
+            icon = Icons.Default.Add,
+            maxWidth = 360.dp,
+            buttons = {
+                KorvaOutlinedButton(
+                    text = "إلغاء",
+                    onClick = { isNewClipDialogOpen = false },
+                    modifier = Modifier.weight(1f)
+                )
+
+                KorvaPrimaryButton(
+                    text = "إنشاء المقطع",
+                    onClick = {
+                        if (newClipName.isNotBlank()) {
+                            val created = backend.createClip(newClipName, 24, 24)
+                            activeClipId = created.id
+                            clipsVersion++
+                            isNewClipDialogOpen = false
                         }
-                        Button(
-                            onClick = {
-                                if (newClipName.isNotBlank()) {
-                                    val created = backend.createClip(newClipName, 24, 24)
-                                    activeClipId = created.id
-                                    clipsVersion++
-                                    isNewClipDialogOpen = false
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = StudioPurple),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text("إنشاء", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
+                    },
+                    icon = Icons.Default.Check,
+                    modifier = Modifier.weight(1.2f)
+                )
             }
+        ) {
+            OutlinedTextField(
+                value = newClipName,
+                onValueChange = { newClipName = it },
+                label = { Text("اسم المقطع (مثال: Run_Fast)", fontSize = 11.sp) },
+                singleLine = true,
+                shape = RoundedCornerShape(8.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = KorvaPurpleLight,
+                    unfocusedBorderColor = StudioBorder,
+                    focusedContainerColor = EngineCardBg,
+                    unfocusedContainerColor = EngineCardBg,
+                    focusedTextColor = TextPrimary,
+                    unfocusedTextColor = TextPrimary
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 
     // L. Rename Clip Dialog
     if (isRenameClipDialogOpen) {
-        Dialog(onDismissRequest = { isRenameClipDialogOpen = false }) {
-            Card(
-                shape = RoundedCornerShape(8.dp),
-                colors = CardDefaults.cardColors(containerColor = EngineSurface),
-                border = androidx.compose.foundation.BorderStroke(1.dp, StudioPurpleBorder),
-                modifier = Modifier.width(280.dp)
-            ) {
-                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("إعادة تسمية المقطع", color = TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    OutlinedTextField(
-                        value = newClipName,
-                        onValueChange = { newClipName = it },
-                        label = { Text("الاسم الجديد") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Button(onClick = { isRenameClipDialogOpen = false }, colors = ButtonDefaults.buttonColors(containerColor = EngineCardBg), modifier = Modifier.weight(1f)) {
-                            Text("إلغاء", color = TextSecondary, fontSize = 10.sp)
+        KorvaDialog(
+            onDismissRequest = { isRenameClipDialogOpen = false },
+            title = "إعادة تسمية مقطع الأنيميشن",
+            subtitle = "تغيير اسم المقطع النشط: ${activeClip.name}",
+            icon = Icons.Default.Edit,
+            maxWidth = 360.dp,
+            buttons = {
+                KorvaOutlinedButton(
+                    text = "إلغاء",
+                    onClick = { isRenameClipDialogOpen = false },
+                    modifier = Modifier.weight(1f)
+                )
+
+                KorvaPrimaryButton(
+                    text = "حفظ التغييرات",
+                    onClick = {
+                        if (newClipName.isNotBlank()) {
+                            backend.renameClip(activeClip.id, newClipName)
+                            clipsVersion++
+                            isRenameClipDialogOpen = false
                         }
-                        Button(
-                            onClick = {
-                                if (newClipName.isNotBlank()) {
-                                    backend.renameClip(activeClip.id, newClipName)
-                                    clipsVersion++
-                                    isRenameClipDialogOpen = false
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = StudioPurple),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text("حفظ", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
+                    },
+                    icon = Icons.Default.Check,
+                    modifier = Modifier.weight(1.2f)
+                )
             }
+        ) {
+            OutlinedTextField(
+                value = newClipName,
+                onValueChange = { newClipName = it },
+                label = { Text("الاسم الجديد", fontSize = 11.sp) },
+                singleLine = true,
+                shape = RoundedCornerShape(8.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = KorvaPurpleLight,
+                    unfocusedBorderColor = StudioBorder,
+                    focusedContainerColor = EngineCardBg,
+                    unfocusedContainerColor = EngineCardBg,
+                    focusedTextColor = TextPrimary,
+                    unfocusedTextColor = TextPrimary
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }

@@ -23,6 +23,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.engine.interfaces.AssetType
 import com.example.engine.interfaces.IAsset
+import com.example.ui.components.KorvaDialog
+import com.example.ui.components.KorvaPrimaryButton
 import com.example.ui.theme.*
 
 @Composable
@@ -143,69 +145,69 @@ fun AssetBrowserPanel(
     // Asset / Texture Preview Dialog (Specification 10)
     if (previewAsset != null) {
         val asset = previewAsset!!
-        AlertDialog(
+        KorvaDialog(
             onDismissRequest = { previewAsset = null },
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Image, contentDescription = null, tint = StudioPurpleLight, modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(asset.name, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                }
+            title = asset.name,
+            subtitle = "معاينة الأصل وبيانات الملف المرفق",
+            icon = when (asset.type) {
+                AssetType.TEXTURE -> Icons.Default.Image
+                AssetType.AUDIO -> Icons.Default.VolumeUp
+                AssetType.SCRIPT -> Icons.Default.Code
+                else -> Icons.Default.Folder
             },
-            text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // Preview Box
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(110.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(StudioPurpleDark)
-                            .border(1.dp, StudioPurpleLight.copy(alpha = 0.5f), RoundedCornerShape(8.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = when (asset.type) {
-                                AssetType.TEXTURE -> Icons.Default.Image
-                                AssetType.AUDIO -> Icons.Default.VolumeUp
-                                AssetType.SCRIPT -> Icons.Default.Code
-                                else -> Icons.Default.Folder
-                            },
-                            contentDescription = null,
-                            tint = StudioPurpleLight,
-                            modifier = Modifier.size(48.dp)
-                        )
-                    }
-
-                    // Metadata Spec Table
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(EngineCardBg, RoundedCornerShape(6.dp))
-                            .padding(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        MetadataRow("Path", asset.relativePath)
-                        MetadataRow("Size", "${asset.sizeBytes / (1024 * 1024f)} MB (${asset.sizeBytes / 1024} KB)")
-                        asset.metadata.forEach { (k, v) ->
-                            MetadataRow(k.replaceFirstChar { it.uppercase() }, v)
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
+            maxWidth = 380.dp,
+            buttons = {
+                KorvaPrimaryButton(
+                    text = "إغلاق المعاينة",
                     onClick = { previewAsset = null },
-                    colors = ButtonDefaults.buttonColors(containerColor = StudioPurple)
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Preview Box
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(110.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(StudioPurpleDark)
+                        .border(1.dp, StudioPurpleLight.copy(alpha = 0.5f), RoundedCornerShape(8.dp)),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text("إغلاق", color = Color.White)
+                    Icon(
+                        imageVector = when (asset.type) {
+                            AssetType.TEXTURE -> Icons.Default.Image
+                            AssetType.AUDIO -> Icons.Default.VolumeUp
+                            AssetType.SCRIPT -> Icons.Default.Code
+                            else -> Icons.Default.Folder
+                        },
+                        contentDescription = null,
+                        tint = StudioPurpleLight,
+                        modifier = Modifier.size(48.dp)
+                    )
                 }
-            },
-            containerColor = EngineSurface
-        )
+
+                // Metadata Spec Table
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(EngineCardBg, RoundedCornerShape(8.dp))
+                        .border(0.8.dp, StudioBorder, RoundedCornerShape(8.dp))
+                        .padding(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    MetadataRow("Path", asset.relativePath)
+                    MetadataRow("Size", "${asset.sizeBytes / (1024 * 1024f)} MB (${asset.sizeBytes / 1024} KB)")
+                    asset.metadata.forEach { (k, v) ->
+                        MetadataRow(k.replaceFirstChar { it.uppercase() }, v)
+                    }
+                }
+            }
+        }
     }
 }
 

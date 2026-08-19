@@ -40,6 +40,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.engine.animation.*
+import com.example.ui.components.KorvaDialog
+import com.example.ui.components.KorvaOutlinedButton
+import com.example.ui.components.KorvaPrimaryButton
 import com.example.ui.theme.*
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -1034,44 +1037,58 @@ fun DopeSheetTimeline(
     // Quick Insert Time Dialog
     if (isQuickInsertTimeOpen) {
         var framesToInsert by remember { mutableIntStateOf(10) }
-        Dialog(onDismissRequest = { isQuickInsertTimeOpen = false }) {
-            Card(
-                shape = RoundedCornerShape(8.dp),
-                colors = CardDefaults.cardColors(containerColor = EngineSurface),
-                border = androidx.compose.foundation.BorderStroke(1.dp, StudioCyan),
-                modifier = Modifier.width(260.dp)
-            ) {
-                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Insert Empty Time", color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    Text("Insert frames at current frame ${currentFrame.toInt()} (shifts downstream keys)", color = TextMuted, fontSize = 9.sp)
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        listOf(5, 10, 15, 24).forEach { count ->
-                            FilterChip(
-                                selected = framesToInsert == count,
-                                onClick = { framesToInsert = count },
-                                label = { Text("+$count f", fontSize = 9.sp) }
-                            )
-                        }
-                    }
+        KorvaDialog(
+            onDismissRequest = { isQuickInsertTimeOpen = false },
+            title = "إدراج زمن فارغ (Insert Time)",
+            subtitle = "إدراج فريمات عند الإطار ${currentFrame.toInt()} وإزاحة المفاتيح اللاحقة",
+            icon = Icons.Default.HourglassTop,
+            maxWidth = 360.dp,
+            buttons = {
+                KorvaOutlinedButton(
+                    text = "إلغاء",
+                    onClick = { isQuickInsertTimeOpen = false },
+                    modifier = Modifier.weight(1f)
+                )
 
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Button(onClick = { isQuickInsertTimeOpen = false }, colors = ButtonDefaults.buttonColors(containerColor = EngineCardBg), modifier = Modifier.weight(1f)) {
-                            Text("Cancel", color = TextSecondary, fontSize = 10.sp)
-                        }
-                        Button(
-                            onClick = {
-                                onStretchTiming(framesToInsert)
-                                isQuickInsertTimeOpen = false
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = StudioCyan),
-                            modifier = Modifier.weight(1f)
+                KorvaPrimaryButton(
+                    text = "إدراج",
+                    onClick = {
+                        onStretchTiming(framesToInsert)
+                        isQuickInsertTimeOpen = false
+                    },
+                    icon = Icons.Default.Check,
+                    modifier = Modifier.weight(1.2f)
+                )
+            }
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text("اختر عدد الفريمات المراد إدراجها:", color = TextSecondary, fontSize = 10.5.sp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf(5, 10, 15, 24).forEach { count ->
+                        val isSelected = framesToInsert == count
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(if (isSelected) KorvaPurple else EngineCardBg)
+                                .border(0.8.dp, if (isSelected) KorvaPurpleLight else StudioBorder, RoundedCornerShape(6.dp))
+                                .clickable { framesToInsert = count }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Text("Insert", color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Text(
+                                text = "+$count f",
+                                color = if (isSelected) Color.White else TextPrimary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
                         }
                     }
                 }

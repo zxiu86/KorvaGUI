@@ -21,6 +21,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.engine.interfaces.ILayer
 import com.example.engine.interfaces.IObject
+import com.example.ui.components.KorvaDialog
+import com.example.ui.components.KorvaDropdownMenu
+import com.example.ui.components.KorvaDropdownMenuItem
+import com.example.ui.components.KorvaOutlinedButton
+import com.example.ui.components.KorvaPrimaryButton
 import com.example.ui.theme.*
 
 @Composable
@@ -218,30 +223,33 @@ fun ObjectBrowserPanel(
                                     )
                                 }
 
-                                DropdownMenu(
+                                KorvaDropdownMenu(
                                     expanded = showMenu,
-                                    onDismissRequest = { showMenu = false },
-                                    modifier = Modifier.background(EngineSurface)
+                                    onDismissRequest = { showMenu = false }
                                 ) {
-                                    DropdownMenuItem(
-                                        text = { Text("استنساخ (Duplicate)", color = TextPrimary, fontSize = 11.sp) },
-                                        leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null, tint = StudioPurpleLight, modifier = Modifier.size(14.dp)) },
+                                    KorvaDropdownMenuItem(
+                                        text = "استنساخ (Duplicate)",
+                                        icon = Icons.Default.ContentCopy,
+                                        iconTint = KorvaPurpleLight,
                                         onClick = {
                                             onDuplicateObject(obj.id)
                                             showMenu = false
                                         }
                                     )
-                                    DropdownMenuItem(
-                                        text = { Text(if (obj.isLocked) "إلغاء القفل (Unlock)" else "قفل (Lock)", color = TextPrimary, fontSize = 11.sp) },
-                                        leadingIcon = { Icon(if (obj.isLocked) Icons.Default.LockOpen else Icons.Default.Lock, contentDescription = null, tint = StudioYellow, modifier = Modifier.size(14.dp)) },
+                                    KorvaDropdownMenuItem(
+                                        text = if (obj.isLocked) "إلغاء القفل (Unlock)" else "قفل (Lock)",
+                                        icon = if (obj.isLocked) Icons.Default.LockOpen else Icons.Default.Lock,
+                                        iconTint = StudioYellow,
                                         onClick = {
                                             onToggleObjectLock(obj.id)
                                             showMenu = false
                                         }
                                     )
-                                    DropdownMenuItem(
-                                        text = { Text("حذف (Delete)", color = StudioRed, fontSize = 11.sp) },
-                                        leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = StudioRed, modifier = Modifier.size(14.dp)) },
+                                    KorvaDropdownMenuItem(
+                                        text = "حذف (Delete)",
+                                        icon = Icons.Default.Delete,
+                                        iconTint = KorvaRed,
+                                        isDanger = true,
                                         onClick = {
                                             onDeleteObject(obj.id)
                                             showMenu = false
@@ -258,42 +266,21 @@ fun ObjectBrowserPanel(
 
     // New Object Dialog
     if (showCreateDialog) {
-        AlertDialog(
+        KorvaDialog(
             onDismissRequest = { showCreateDialog = false },
-            title = { Text("إنشاء كائن جديد", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = newObjectName,
-                        onValueChange = { newObjectName = it },
-                        placeholder = { Text("اسم الكائن (مثال: Coin_Bonus)", color = TextMuted) },
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = StudioPurpleLight,
-                            unfocusedBorderColor = StudioBorder
-                        )
-                    )
+            title = "إنشاء كائن جديد (New Object)",
+            subtitle = "إضافة كائن إلى مشهد اللعبة وتعيين طبقته",
+            icon = Icons.Default.AddBox,
+            maxWidth = 380.dp,
+            buttons = {
+                KorvaOutlinedButton(
+                    text = "إلغاء",
+                    onClick = { showCreateDialog = false },
+                    modifier = Modifier.weight(1f)
+                )
 
-                    Text("اختر الطبقة:", color = TextSecondary, fontSize = 11.sp)
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        layers.forEach { l ->
-                            val isChosen = selectedTargetLayerId == l.id
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(if (isChosen) StudioPurple else EngineCardBg)
-                                    .border(0.6.dp, if (isChosen) StudioPurpleLight else StudioBorder, RoundedCornerShape(4.dp))
-                                    .clickable { selectedTargetLayerId = l.id }
-                                    .padding(horizontal = 6.dp, vertical = 4.dp)
-                            ) {
-                                Text(l.name, color = if (isChosen) Color.White else TextMuted, fontSize = 9.5.sp)
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
+                KorvaPrimaryButton(
+                    text = "إنشاء الكائن",
                     onClick = {
                         if (newObjectName.isNotBlank()) {
                             onCreateObject(newObjectName.trim(), selectedTargetLayerId)
@@ -301,17 +288,46 @@ fun ObjectBrowserPanel(
                             showCreateDialog = false
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = StudioPurple)
-                ) {
-                    Text("إنشاء", color = Color.White)
+                    icon = Icons.Default.Check,
+                    modifier = Modifier.weight(1.2f)
+                )
+            }
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = newObjectName,
+                    onValueChange = { newObjectName = it },
+                    placeholder = { Text("اسم الكائن (مثال: Coin_Bonus)", color = TextMuted) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(8.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = StudioPurpleLight,
+                        unfocusedBorderColor = StudioBorder,
+                        focusedContainerColor = EngineCardBg,
+                        unfocusedContainerColor = EngineCardBg,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Text("اختر الطبقة:", color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    layers.forEach { l ->
+                        val isChosen = selectedTargetLayerId == l.id
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(if (isChosen) StudioPurple else EngineCardBg)
+                                .border(0.8.dp, if (isChosen) StudioPurpleLight else StudioBorder, RoundedCornerShape(6.dp))
+                                .clickable { selectedTargetLayerId = l.id }
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Text(l.name, color = if (isChosen) Color.White else TextMuted, fontSize = 10.sp, fontWeight = FontWeight.Medium)
+                        }
+                    }
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { showCreateDialog = false }) {
-                    Text("إلغاء", color = TextMuted)
-                }
-            },
-            containerColor = EngineSurface
-        )
+            }
+        }
     }
 }
